@@ -57,7 +57,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
             )
         new Setting(containerEl)
             .setName('Tag indicator')
-            .setDesc('A character/string other users will use to tag you.')
+            .setDesc('A character/string you and other users will use to tag each other.')
             .addText(text => text
                 .setPlaceholder('default: @')
                 .setValue(this.plugin.settings.tagSymb)
@@ -70,6 +70,8 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
+
+        /************************************************************ 
         new Setting(containerEl)
             .setName('Notify pop-up')
             .setDesc('Automatic pop-up option to notify user upon tag')
@@ -84,6 +86,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
+        **************************************************************/
         new Setting(containerEl)
             .setName('Name list file')
             .setDesc('File that stores all candidates for names to be added')

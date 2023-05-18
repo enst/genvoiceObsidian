@@ -1,3 +1,4 @@
+/************************************************************** 
 import { Plugin, App, Editor, Notice, TFile } from 'obsidian';
 import TextPlugin from '../main';
 import { TextPluginSettings } from './settings';
@@ -27,3 +28,4 @@ export function loadMentionModal(settings: TextPluginSettings) {
     
 }
 
+*********************************************************/

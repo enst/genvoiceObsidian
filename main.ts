@@ -31,6 +31,7 @@ export default class TextPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
+		/***********************************************************************
 		// load notifications upon start or through ribbon icon
 
 		this.registerDomEvent(document, 'load', (evt: Event) => {
@@ -46,6 +47,7 @@ export default class TextPlugin extends Plugin {
 		this.registerEvent(this.app.workspace.on('file-open', (file: TFile) => {
 			new Notice('yes');
 		}))
+		******************************************************************/
 
 		// updates last edit date upon any changes to the editor
 
@@ -101,8 +103,6 @@ export default class TextPlugin extends Plugin {
 				}
 			}
 		});
-
-
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));

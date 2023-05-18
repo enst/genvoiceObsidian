@@ -4,7 +4,7 @@ import { TextPluginSettings } from './settings';
 
 // mentionModal 
 
-/*
+/*****************************************************************************************************************
 export class MentionModal extends Modal {
 
 	editor: Editor;
@@ -43,7 +43,7 @@ export class MentionModal extends Modal {
 			
 	}
 }
-*/
+
 
 // ask to notify modal
 
@@ -74,6 +74,8 @@ export class NotifyModal extends Modal {
 			})
 		}
 }
+
+***************************************************************************************************/
 
 // suggestion modal
 
@@ -107,6 +109,19 @@ export class SuggestionModal extends SuggestModal<string> {
 				{ line: this.editor.getCursor().line, ch: this.editor.getCursor().ch - 1 },
 				this.editor.getCursor()
 			)
+		} else {
+			this.editor.replaceRange(item, this.editor.getCursor());
+		}
+		updateLastEditDate(this.editor, this.settings);
+	}
+}
+		/******************************************
+		if (this.triggerNotify) {
+			this.editor.replaceRange(
+				item,
+				{ line: this.editor.getCursor().line, ch: this.editor.getCursor().ch - 1 },
+				this.editor.getCursor()
+			)
 			if (this.settings.autoNotify) {
 				new NotifyModal(item, this.settings).open();
 			}
@@ -114,5 +129,4 @@ export class SuggestionModal extends SuggestModal<string> {
 			this.editor.replaceRange(item, this.editor.getCursor());
 		}
 		updateLastEditDate(this.editor, this.settings);
-	}
-}
+		********************************************/

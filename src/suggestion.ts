@@ -1,3 +1,4 @@
+/**************************************************************************************
 import { Plugin, Editor, App } from 'obsidian';
 import TextPlugin from '../main';
 import { TextPluginSettings } from './settings';
@@ -28,3 +29,5 @@ export function showSuggestions(app: App, settings: TextPluginSettings, suggesti
     suggester.show();
 }
 
+
+***********************************************************************************/
