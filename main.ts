@@ -1,7 +1,7 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, moment, SuggestModal, WorkspaceLeaf, TFile } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { SuggestionModal } from './src/modals';
-import { loadNotifications } from './src/notification';
+//import { loadNotifications } from './src/notification';
 
 
 //import { showSuggestions } from 'src/suggestion';
@@ -11,17 +11,28 @@ import { loadNotifications } from './src/notification';
 export function updateLastEditDate(editor: Editor, settings: TextPluginSettings) {
 	let lineIndex = 0;
 	while (editor.getLine(lineIndex)) {
-		if (editor.getLine(lineIndex).startsWith(settings.lastEditDateStr)) {
-			editor.replaceRange(
-				moment().format(settings.dateFormat),
-				{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-				{ line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 },
-			);
-			break;
+		let line = editor.getLine(lineIndex);
+		if (line.startsWith(settings.lastEditDateStr)) {
+			if (editor.getCursor().line != lineIndex) {
+				if (line.length > settings.lastEditDateStr.length + settings.dateFormat.length) {
+					editor.replaceRange(
+						moment().format(settings.dateFormat),
+						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
+						{ line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 }
+					)
+				} else {
+					editor.replaceRange(
+						moment().format(settings.dateFormat),
+						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 }
+					)
+				}
+			}
+		break;
 		}
-		lineIndex ++;	
+	lineIndex ++;	
 	}
 }
+
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
