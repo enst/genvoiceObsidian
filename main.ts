@@ -3,9 +3,6 @@ import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './sr
 import { SuggestionModal } from './src/modals';
 //import { loadNotifications } from './src/notification';
 
-
-//import { showSuggestions } from 'src/suggestion';
-
 // automaticaly updates latest edit date
 
 export function updateLastEditDate(editor: Editor, settings: TextPluginSettings) {
@@ -23,7 +20,8 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 				} else {
 					editor.replaceRange(
 						moment().format(settings.dateFormat),
-						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 }
+						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
+						{ line: lineIndex, ch: line.length }
 					)
 				}
 			}
