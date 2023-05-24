@@ -11,8 +11,10 @@ export interface TextPluginSettings {
     noticeSymb: string;
 	lastEditDateStr: string;
 	dateFormat: string;
+    peopleStr: string;
 	peopleListFileName: string;
 	suggestionSplitStr: string;
+    eventOnListen: boolean;
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -22,8 +24,10 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
     noticeSymb: "!",
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
+    peopleStr: "people:",
 	peopleListFileName: "collaborator",
 	suggestionSplitStr: "\n",
+    eventOnListen: true
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {
@@ -70,7 +74,20 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
-
+        new Setting(containerEl)
+            .setName('Keyword: people list')
+            .addText(text => text
+                .setPlaceholder('default: people:')
+                .setValue(this.plugin.settings.peopleStr)
+                .onChange(async (input) => {
+                    if (input.localeCompare('') == 0) {
+                        this.plugin.settings.peopleStr = DEFAULT_SETTINGS.peopleStr!;
+                    } else {
+                        this.plugin.settings.peopleStr = input;
+                    }
+                    await this.plugin.saveSettings();
+                })
+            )
         /************************************************************ 
         new Setting(containerEl)
             .setName('Notify pop-up')

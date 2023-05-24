@@ -1,6 +1,7 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, moment, SuggestModal, WorkspaceLeaf, TFile } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { SuggestionModal } from './src/modals';
+import { monitorEventLoopDelay } from 'perf_hooks';
 //import { loadNotifications } from './src/notification';
 
 // automaticaly updates latest edit date
@@ -31,6 +32,20 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 	}
 }
 
+// generate name list and open modal
+
+export function openSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
+	const files: TFile[] = app.vault.getMarkdownFiles();
+	for (let index = 0; index < files.length; index++) {
+		if (files[index].path.localeCompare(settings.peopleListFileName + '.md') == 0) {
+			app.vault.read(files[index]).then((content: string) => {
+				let nameSuggestionList: string[] = content.split(settings.suggestionSplitStr);
+				new SuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
+			})
+			break;
+		}
+	}
+}
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
@@ -58,6 +73,7 @@ export default class TextPlugin extends Plugin {
 		}))
 		******************************************************************/
 
+		//------------------------------------------------------------------------------------------------DATE INSERTION / UDDATES
 		// updates last edit date upon any changes to the editor
 
 		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
@@ -76,45 +92,40 @@ export default class TextPlugin extends Plugin {
 			updateLastEditDate(editor, this.settings);
 		});	
 
+		//------------------------------------------------------------------------------------------ ADDING PEOPLE
+
+		// adding people in the "people list" through single mouse click
+		
+		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
+			let editor = this.app.workspace.activeEditor!.editor!;
+			if (editor.getLine(editor.getCursor().line).startsWith(this.settings.peopleStr)) {
+				openSuggestionModal(this.app, this.settings, 0);
+			}
+		});
+
 		// adding/mentioning people anywhere on the editor through tag symbol
 
 		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
 			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
 			if (key.localeCompare(this.settings.tagSymb) == 0) {
-				const files: TFile[] = this.app.vault.getMarkdownFiles();
-				for (let index = 0; index < files.length; index++) {
-					if (files[index].path.localeCompare(this.settings.peopleListFileName + '.md') == 0) {
-						this.app.vault.read(files[index]).then((content) => {
-							editor.replaceRange(
-								this.settings.tagSymb + ' ',
-								{ line: editor.getCursor().line, ch: editor.getCursor().ch - 1 },
-								editor.getCursor()
-							)
-							let nameSuggestionList: string[] = content.split(this.settings.suggestionSplitStr);
-							new SuggestionModal(editor, this.settings, nameSuggestionList, true).open();
-						})
-					}
-				}
+				openSuggestionModal(this.app, this.settings, 1);
 			}
 		}));
 
 		// adding people (opening suggestion modal) anywhere on the editor through ribbon icon
 
 		const ribbonIconAddPeople = this.addRibbonIcon('user', 'Add People', (evt: MouseEvent) => {
-			let editor = this.app.workspace.activeEditor!.editor!;
-			const files: TFile[] = this.app.vault.getMarkdownFiles();
-			for (let index = 0; index < files.length; index++) {
-				if (files[index].path.localeCompare(this.settings.peopleListFileName + '.md') == 0) {
-					this.app.vault.read(files[index]).then((content) => {
-						let nameSuggestionList: string[] = content.split(this.settings.suggestionSplitStr);
-						new SuggestionModal(editor, this.settings, nameSuggestionList, false).open();
-					})
-				}
-			}
+			openSuggestionModal(this.app, this.settings, 2);
 		});
 
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+		// cursor relocation
+
+		this.registerInterval(window.setInterval(() => {
+			let editor = this.app.workspace.activeEditor!.editor!
+			if (editor.getLine(editor.getCursor().line + 1).startsWith(this.settings.peopleStr) && editor.getCursor().ch == 0) {
+				editor.setCursor({ line: editor.getCursor().line + 1, ch: editor.getLine(editor.getCursor().line + 1).length })
+			}
+		}, 100));
 	}
 
 	onunload() {
