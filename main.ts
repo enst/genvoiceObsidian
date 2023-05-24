@@ -34,17 +34,25 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 
 // generate name list and open modal
 
-export function openSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
-	const files: TFile[] = app.vault.getMarkdownFiles();
+export async function openSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
+	const nameFile = app.vault.getMarkdownFiles().find((file) => file.path.localeCompare(settings.peopleListFileName + '.md') == 0);
+	const nameSuggestionList: string[] = (await app.vault.read(nameFile!)).split(settings.suggestionSplitStr);
+	new SuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
+}
+
+// show notifications and remove tag symbols from corresponding files
+
+export async function showNotifications(app: App, settings: TextPluginSettings) {
+	const files: TFile[] = this.app.vault.getMarkdownFiles();
 	for (let index = 0; index < files.length; index++) {
-		if (files[index].path.localeCompare(settings.peopleListFileName + '.md') == 0) {
-			app.vault.read(files[index]).then((content: string) => {
-				let nameSuggestionList: string[] = content.split(settings.suggestionSplitStr);
-				new SuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
-			})
-			break;
+		let oldContent: string= await this.app.vault.read(files[index]);
+		if (oldContent.contains(settings.tagSymb + settings.username)) {
+			new Notice('You have a new mention in ' + files[index].path);
+			let newContent: string = oldContent.replace(new RegExp(settings.tagSymb + settings.username, 'gi'), settings.username);
+			app.vault.modify(files[index], newContent);
 		}
 	}
+
 }
 
 export default class TextPlugin extends Plugin {
@@ -55,7 +63,17 @@ export default class TextPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
-		/***********************************************************************
+		const ribbonIconTest = this.addRibbonIcon('bell', 'Test Icon', (evt: MouseEvent) => {
+			this.app.vault.create('yes.md', 'nono')
+		});
+
+
+		//*********************************************************************** NOTIFICAITONS
+		
+		
+
+
+		/*
 		// load notifications upon start or through ribbon icon
 
 		this.registerDomEvent(document, 'load', (evt: Event) => {

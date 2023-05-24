@@ -14,7 +14,7 @@ export interface TextPluginSettings {
     peopleStr: string;
 	peopleListFileName: string;
 	suggestionSplitStr: string;
-    eventOnListen: boolean;
+    newNotifFileName: string;
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -27,7 +27,7 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
     peopleStr: "people:",
 	peopleListFileName: "collaborator",
 	suggestionSplitStr: "\n",
-    eventOnListen: true
+    newNotifFileName: "notifications"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {

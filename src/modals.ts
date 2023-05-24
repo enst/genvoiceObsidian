@@ -1,7 +1,6 @@
 import { SuggestModal, Modal, Editor, ButtonComponent, Notice, EditorPosition } from 'obsidian';
 import { updateLastEditDate } from '../main';
 import { TextPluginSettings } from './settings';
-
 // mentionModal 
 
 /*****************************************************************************************************************
