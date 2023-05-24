@@ -52,44 +52,29 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 			app.vault.modify(files[index], newContent);
 		}
 	}
-
 }
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
 
+	
 	async onload() {
 
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
-		const ribbonIconTest = this.addRibbonIcon('bell', 'Test Icon', (evt: MouseEvent) => {
-			this.app.vault.create('yes.md', 'nono')
-		});
-
-
-		//*********************************************************************** NOTIFICAITONS
-		
-		
-
-
 		/*
-		// load notifications upon start or through ribbon icon
+		const ribbonIconTest = this.addRibbonIcon('bell', 'Test Icon', (evt: MouseEvent) => {
+			showNotifications(this.app, this.settings);
+		});
+		*/
 
-		this.registerDomEvent(document, 'load', (evt: Event) => {
-			loadNotifications(this.settings);
-		})
+
+		//------------------------------------------------------------------------------------------------ NOTIFICAITONS
 		
-		const ribbonIconNotifications = this.addRibbonIcon('bell', 'Show Notifications', (evt: MouseEvent) => {
-			loadNotifications(this.settings);
-		})
-
-		// display notification on current file upon opening file
-
-		this.registerEvent(this.app.workspace.on('file-open', (file: TFile) => {
-			new Notice('yes');
+		this.registerEvent(this.app.workspace.on('resize', () => {
+			showNotifications(this.app, this.settings);
 		}))
-		******************************************************************/
 
 		//------------------------------------------------------------------------------------------------DATE INSERTION / UDDATES
 		// updates last edit date upon any changes to the editor
