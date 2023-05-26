@@ -167,7 +167,21 @@ export class TextPluginSettingTab extends PluginSettingTab {
                 })
             )
         
-        
+		new Setting(containerEl)
+            .setName('New day separation line')
+            .setDesc('For auto insertion of date and username upon edit.')
+            .addText(text => text
+                .setPlaceholder('default: ---')
+                .setValue(this.plugin.settings.separationLineStr)
+                .onChange(async (input) => {
+                    if (input.localeCompare('') == 0) {
+                        this.plugin.settings.separationLineStr = DEFAULT_SETTINGS.separationLineStr!;
+                    } else {
+                        this.plugin.settings.separationLineStr = input;
+                    }
+                    await this.plugin.saveSettings();
+                })
+            )
     }   
 }
 
