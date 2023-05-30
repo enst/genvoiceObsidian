@@ -110,7 +110,7 @@ export default class TextPlugin extends Plugin {
 		
 		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
 			let editor = this.app.workspace.activeEditor!.editor!;
-			if (editor.getLine(editor.getCursor().line).startsWith(this.settings.peopleStr)) {
+			if (editor.getLine(editor.getCursor().line).startsWith(this.settings.peopleStr) && editor.getCursor().ch == editor.getLine(editor.getCursor().line).length) {
 				openSuggestionModal(this.app, this.settings, 0);
 			}
 		});
