@@ -104,8 +104,9 @@ export class SuggestionModal extends SuggestModal<string> {
 	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
 		switch (this.caseID) {
 			case 0:
-				this.editor.replaceRange(item + ",", this.editor.getCursor());
+				let cursorPos = this.editor.getCursor();
 				this.editor.setCursor({ line: this.editor.getCursor().line - 1, ch: 0 });
+				this.editor.replaceRange(item, cursorPos);
 				break;
 			case 1:
 				this.editor.replaceRange(
