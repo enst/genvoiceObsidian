@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	peopleListFileName: "collaborator",
 	suggestionSplitStr: "\n",
     newNotifFileName: "notifications",
-	separationLineStr: "---"
+	separationLineStr: "--"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {
@@ -90,22 +90,6 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
-        /************************************************************ 
-        new Setting(containerEl)
-            .setName('Notify pop-up')
-            .setDesc('Automatic pop-up option to notify user upon tag')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.autoNotify)
-                .onChange(async (value) => {
-                    if (this.plugin.settings.autoNotify) {
-                        this.plugin.settings.autoNotify = false;
-                    } else {
-                        this.plugin.settings.autoNotify = true;
-                    }
-                    await this.plugin.saveSettings();
-                })
-            )
-        **************************************************************/
         new Setting(containerEl)
             .setName('Name list file')
             .setDesc('File that stores all candidates for names to be added')
@@ -173,7 +157,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
             .setName('New day separation line')
             .setDesc('For auto insertion of date and username upon edit.')
             .addText(text => text
-                .setPlaceholder('default: ---')
+                .setPlaceholder('default: --')
                 .setValue(this.plugin.settings.separationLineStr)
                 .onChange(async (input) => {
                     if (input.localeCompare('') == 0) {

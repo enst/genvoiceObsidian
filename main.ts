@@ -58,8 +58,8 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 
 export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
 	editor.replaceRange(
-		'\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + " " + settings.username + '\n',
-		{ line: editor.getCursor().line - 1, ch: 0 }
+		settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username + '\n',
+		{ line: editor.getCursor().line, ch: 0 }
 	)
 }
 
@@ -132,7 +132,7 @@ export default class TextPlugin extends Plugin {
 		const ribbonIconAddPeople = this.addRibbonIcon('user', 'Add People', (evt: MouseEvent) => {
 			openSuggestionModal(this.app, this.settings, 2);
 		});
-		
+
 		// cursor relocation
 
 		this.registerInterval(window.setInterval(() => {
@@ -145,19 +145,18 @@ export default class TextPlugin extends Plugin {
 		//------------------------------------------------------------------------------------------------------------ AUTO DATE & NAME INSERTION
 
 		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
-			let editor = this.app.workspace.activeEditor!.editor!;
+			let editor = this.app.workspace.activeEditor!.editor!
 			let lineTrack = 0;
-			for (let index = 0; index < editor.getCursor().line; index++) {
+			for (let index = 0; index < editor.getCursor().line; index ++) {
 				if (editor.getLine(index).startsWith(this.settings.separationLineStr)) {
 					lineTrack ++;
 				}
 			}
-			if (lineTrack == 2 && !editor.getLine(editor.getCursor().line - 1).startsWith(this.settings.separationLineStr)) {
+			if (lineTrack == 1) {
 				generateAutoText(this.app, editor, this.settings);
 			}
 		});
 	}
-
 	onunload() {
 
 	}
