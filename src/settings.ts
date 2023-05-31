@@ -175,6 +175,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
         
         new Setting(containerEl)
             .setName('Template folder path')
+            .setDesc('For auto-prompt on templates upon file creation')
             .addText(text => text
                 .setPlaceholder('default: templates/')
                 .setValue(this.plugin.settings.templateFolderPath)

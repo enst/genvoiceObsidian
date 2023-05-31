@@ -1,6 +1,6 @@
 import { App, Editor, moment, TFile, Notice } from 'obsidian'
 import { TextPluginSettings } from './settings'
-import { SuggestionModal } from './modals'
+import { PeopleSuggestionModal, TemplateSuggestionModal } from './modals'
 
 // automaticaly updates latest edit date
 
@@ -32,10 +32,10 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 
 // generate name list and open modal
 
-export async function openSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
+export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
 	const nameFile = app.vault.getMarkdownFiles().find((file) => file.path.localeCompare(settings.peopleListFileName + '.md') == 0);
 	const nameSuggestionList: string[] = (await app.vault.read(nameFile!)).split(settings.suggestionSplitStr);
-	new SuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
+	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
 }
 
 // show notifications and remove tag symbols from corresponding files
@@ -54,11 +54,32 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 
 //generate auto text (date + username)
 
-export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings, lineNum: number) {
-	editor.replaceRange(
-		settings.separationLineStr + '\n\n\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
-		{ line: lineNum, ch: 0 },
-		{ line: lineNum, ch: settings.separationLineStr.length }
-	)
+export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
+    let lineTrack = { count: 0, line: 0 }
+    for (let index = 0; index < editor.getCursor().line; index ++) {
+        if (editor.getLine(index).startsWith(settings.separationLineStr)) {
+            lineTrack.count ++;
+            lineTrack.line = index;
+        }
+    }
+    if (lineTrack.count == 1) {
+        editor.replaceRange(
+            settings.separationLineStr + '\n\n\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
+            { line: lineTrack.line, ch: 0 },
+            { line: lineTrack.line, ch: settings.separationLineStr.length }
+        )
+    }
 }
 
+// open template suggestion modal
+
+export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {
+    const files: TFile[] = app.vault.getMarkdownFiles();
+    const templateFiles: TFile[] = [];
+    for (let index = 0; index < files.length; index++) {
+        if (files[index].path.startsWith(settings.templateFolderPath)) {
+            templateFiles.push(files[index]);
+        }
+    }
+    new TemplateSuggestionModal(app.workspace.activeEditor!.editor!, settings, templateFiles).open();
+}
