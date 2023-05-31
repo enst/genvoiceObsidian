@@ -1,5 +1,5 @@
-import { SuggestModal, Modal, Editor, ButtonComponent, Notice, EditorPosition } from 'obsidian';
-import { updateLastEditDate } from '../main';
+import { SuggestModal, Editor } from 'obsidian';
+import { updateLastEditDate } from './assets';
 import { TextPluginSettings } from './settings';
 // mentionModal 
 
