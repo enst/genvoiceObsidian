@@ -33,7 +33,7 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 // generate name list and open modal
 
 export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
-	const nameFile = app.vault.getMarkdownFiles().find((file) => file.path.localeCompare(settings.peopleListFileName + '.md') == 0);
+	const nameFile = app.vault.getMarkdownFiles().find((file) => file.path.localeCompare(settings.peopleFilePath + '.md') == 0);
 	const nameSuggestionList: string[] = (await app.vault.read(nameFile!)).split(settings.suggestionSplitStr);
 	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
 }
@@ -55,18 +55,17 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 //generate auto text (date + username)
 
 export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
-    let lineTrack = { count: 0, line: 0 }
+    let lineTrack = true;
     for (let index = 0; index < editor.getCursor().line; index ++) {
         if (editor.getLine(index).startsWith(settings.separationLineStr)) {
-            lineTrack.count ++;
-            lineTrack.line = index;
+            lineTrack = false;
+            break;
         }
     }
-    if (lineTrack.count == 1) {
+    if (lineTrack) {
         editor.replaceRange(
-            settings.separationLineStr + '\n\n\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
-            { line: lineTrack.line, ch: 0 },
-            { line: lineTrack.line, ch: settings.separationLineStr.length }
+            settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
+            { line: editor.getCursor().line - 1, ch: 0 }
         )
     }
 }

@@ -12,7 +12,7 @@ export interface TextPluginSettings {
 	lastEditDateStr: string;
 	dateFormat: string;
     peopleStr: string;
-	peopleListFileName: string;
+	peopleFilePath: string;
 	suggestionSplitStr: string;
     newNotifFileName: string;
 	separationLineStr: string;
@@ -27,11 +27,11 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
     peopleStr: "people:",
-	peopleListFileName: "collaborator",
+	peopleFilePath: "All/Collaborators",
 	suggestionSplitStr: "\n",
     newNotifFileName: "notifications",
 	separationLineStr: "--",
-    templateFolderPath: "templates/"
+    templateFolderPath: "All/Templates/"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {
@@ -97,12 +97,12 @@ export class TextPluginSettingTab extends PluginSettingTab {
             .setDesc('File that stores all candidates for names to be added')
             .addText(text => text
                 .setPlaceholder('default: collaborator')
-                .setValue(this.plugin.settings.peopleListFileName)
+                .setValue(this.plugin.settings.peopleFilePath)
                 .onChange(async (input) => {
                     if (input.localeCompare('') == 0) {
-                        this.plugin.settings.peopleListFileName = DEFAULT_SETTINGS.peopleListFileName!;
+                        this.plugin.settings.peopleFilePath = DEFAULT_SETTINGS.peopleFilePath!;
                     } else {
-                        this.plugin.settings.peopleListFileName = input;
+                        this.plugin.settings.peopleFilePath = input;
                     }
                     await this.plugin.saveSettings();
                 })
