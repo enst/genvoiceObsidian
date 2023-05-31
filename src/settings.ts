@@ -16,6 +16,7 @@ export interface TextPluginSettings {
 	suggestionSplitStr: string;
     newNotifFileName: string;
 	separationLineStr: string;
+    templateFolderPath: string;
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -29,7 +30,8 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	peopleListFileName: "collaborator",
 	suggestionSplitStr: "\n",
     newNotifFileName: "notifications",
-	separationLineStr: "--"
+	separationLineStr: "--",
+    templateFolderPath: "templates/"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {
@@ -153,6 +155,8 @@ export class TextPluginSettingTab extends PluginSettingTab {
                 })
             )
         
+        containerEl.createEl('h1', { text: 'Others'});
+
 		new Setting(containerEl)
             .setName('New day separation line')
             .setDesc('For auto insertion of date and username upon edit.')
@@ -164,6 +168,21 @@ export class TextPluginSettingTab extends PluginSettingTab {
                         this.plugin.settings.separationLineStr = DEFAULT_SETTINGS.separationLineStr!;
                     } else {
                         this.plugin.settings.separationLineStr = input;
+                    }
+                    await this.plugin.saveSettings();
+                })
+            )
+        
+        new Setting(containerEl)
+            .setName('Template folder path')
+            .addText(text => text
+                .setPlaceholder('default: templates/')
+                .setValue(this.plugin.settings.templateFolderPath)
+                .onChange(async (input) => {
+                    if (input.localeCompare('') == 0) {
+                        this.plugin.settings.templateFolderPath = DEFAULT_SETTINGS.templateFolderPath!;
+                    } else {
+                        this.plugin.settings.templateFolderPath = input;
                     }
                     await this.plugin.saveSettings();
                 })
