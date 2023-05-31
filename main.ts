@@ -56,10 +56,11 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 
 //generate auto text (date + username)
 
-export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
+export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings, lineNum: number) {
 	editor.replaceRange(
-		settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username + '\n',
-		{ line: editor.getCursor().line, ch: 0 }
+		settings.separationLineStr + '\n\n\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
+		{ line: lineNum, ch: 0 },
+		{ line: lineNum, ch: settings.separationLineStr.length }
 	)
 }
 
@@ -146,14 +147,15 @@ export default class TextPlugin extends Plugin {
 
 		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
 			let editor = this.app.workspace.activeEditor!.editor!
-			let lineTrack = 0;
+			let lineTrack = { count: 0, line: 0 }
 			for (let index = 0; index < editor.getCursor().line; index ++) {
 				if (editor.getLine(index).startsWith(this.settings.separationLineStr)) {
-					lineTrack ++;
+					lineTrack.count ++;
+					lineTrack.line = index;
 				}
 			}
-			if (lineTrack == 1) {
-				generateAutoText(this.app, editor, this.settings);
+			if (lineTrack.count == 1) {
+				generateAutoText(this.app, editor, this.settings, lineTrack.line);
 			}
 		});
 	}
