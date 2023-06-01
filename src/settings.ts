@@ -1,9 +1,6 @@
 import TextPlugin from "../main";
 import { App, PluginSettingTab, Setting } from "obsidian";
 
-// setting tab for textPlugin
-// to be imported by main.ts
-
 export interface TextPluginSettings {
 	username: string;
 	tagSymb: string;
@@ -17,6 +14,7 @@ export interface TextPluginSettings {
     newNotifFileName: string;
 	separationLineStr: string;
     templateFolderPath: string;
+    dataviewHeaderLine: string;
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -31,7 +29,8 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	suggestionSplitStr: "\n",
     newNotifFileName: "notifications",
 	separationLineStr: "--",
-    templateFolderPath: "All/Templates/"
+    templateFolderPath: "All/Templates/",
+    dataviewHeaderLine: "---"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {

@@ -52,24 +52,6 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 	}
 }
 
-//generate auto text (date + username)
-
-export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
-    let lineTrack = true;
-    for (let index = 0; index < editor.getCursor().line; index ++) {
-        if (editor.getLine(index).startsWith(settings.separationLineStr)) {
-            lineTrack = false;
-            break;
-        }
-    }
-    if (lineTrack) {
-        editor.replaceRange(
-            settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
-            { line: editor.getCursor().line - 1, ch: 0 }
-        )
-    }
-}
-
 // open template suggestion modal
 
 export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {

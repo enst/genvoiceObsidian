@@ -1,6 +1,7 @@
 import { App, Editor, Notice, Plugin, moment, TFile } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { updateLastEditDate, openPeopleSuggestionModal, showNotifications, generateAutoText, openTemplateSuggestionModal } from './src/assets'
+import { updateLastEditDate, openPeopleSuggestionModal, showNotifications, openTemplateSuggestionModal } from './src/assets'
+import { generateAutoText } from './src/autotext'
 import { monitorEventLoopDelay } from 'perf_hooks';
 
 export default class TextPlugin extends Plugin {
@@ -99,6 +100,7 @@ export default class TextPlugin extends Plugin {
 			}, 100);
 		}));
 		*/
+		
 		
 	}
 	onunload() {
