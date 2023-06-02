@@ -91,18 +91,17 @@ export default class TextPlugin extends Plugin {
 
 		//-------------------------------------------------------------------------------------------------------------- INSERT TEMPLATE
 
-		/*
-		this.registerEvent(this.app.vault.on('create', (file: TFile) => {
-			setTimeout(() => {
-				if (file.path.endsWith('.md')) {
-					openTemplateSuggestionModal(this.app, this.settings);
-				}
-			}, 100);
-		}));
-		*/
-		
-		
+		setTimeout(() => {
+			this.registerEvent(this.app.vault.on('create', (file: TFile) => {
+				setTimeout(() => {
+					if (file.path.endsWith('.md')) {
+						openTemplateSuggestionModal(this.app, this.settings);
+					}
+				}, 100);
+			}));
+		}, 100);
 	}
+
 	onunload() {
 
 	}
