@@ -15,6 +15,7 @@ export interface TextPluginSettings {
 	separationLineStr: string;
     templateFolderPath: string;
     dataviewHeaderLine: string;
+    templateDetectionStr: string;
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -30,7 +31,8 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
     newNotifFileName: "notifications",
 	separationLineStr: "--",
     templateFolderPath: "All/Templates/",
-    dataviewHeaderLine: "---"
+    dataviewHeaderLine: "---",
+    templateDetectionStr: "type: task"
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {

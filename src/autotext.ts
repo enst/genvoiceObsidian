@@ -3,6 +3,7 @@ import { TextPluginSettings } from './settings'
 
 // detect if cursor is currently in the dataview area
 
+/*
 export function disabledArea(app: App, editor: Editor, settings: TextPluginSettings): boolean {
     let numTrack = 0;
     for (let index = 0; index < editor.getCursor().line - 1; index++) {
@@ -19,14 +20,27 @@ export function disabledArea(app: App, editor: Editor, settings: TextPluginSetti
     }
     return false;
 }
+*/
 
-// check if the cursor is currently in the newest date 
+// check if auto text is allowed at current cursor location in current file
 
-export function notNewestDate(app: App, editor: Editor, settings: TextPluginSettings): boolean {
+export function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
+    let dataviewLineTrack = 0;
+    let isTemplate = false;
     for (let index = 0; index < editor.getCursor().line; index++) {
-        if (editor.getLine(index).startsWith(settings.separationLineStr)) {
+        let line = editor.getLine(index);
+        if (line.startsWith(settings.separationLineStr)) {
             return true;
         }
+        if (line.startsWith(settings.dataviewHeaderLine)) {
+            dataviewLineTrack ++;
+        }
+        if (line.startsWith(settings.templateDetectionStr)) {
+            isTemplate = true;
+        }
+    }
+    if (dataviewLineTrack <= 1 || !isTemplate) {
+        return true;
     }
     return false;
 }
@@ -34,10 +48,14 @@ export function notNewestDate(app: App, editor: Editor, settings: TextPluginSett
 //generate auto text (date + username)
 
 export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
-    if (!disabledArea(app, editor, settings) && !notNewestDate(app, editor, settings)) {
+    if (!disableAutoText(app, editor, settings)) {
         editor.replaceRange(
             '\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
-            { line: editor.getCursor().line - 1, ch: 0 }
+            { line: editor.getCursor().line - 1, ch: editor.getLine(editor.getCursor().line - 1).length }
+        )
+        editor.replaceRange(
+            '\n',
+            { line: editor.getCursor().line + 1, ch: 0}
         )
     }
 }
