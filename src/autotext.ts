@@ -1,33 +1,15 @@
-import { App, Editor, moment } from 'obsidian'
+import { App, Editor, moment, Notice } from 'obsidian'
 import { TextPluginSettings } from './settings'
-
-// detect if cursor is currently in the dataview area
-
-/*
-export function disabledArea(app: App, editor: Editor, settings: TextPluginSettings): boolean {
-    let numTrack = 0;
-    for (let index = 0; index < editor.getCursor().line - 1; index++) {
-        if (editor.getLine(index).startsWith(settings.dataviewHeaderLine)) {
-            numTrack ++;
-        }
-    }
-    if (numTrack == 1) {
-        return true;
-    }
-    if (numTrack == 0 && (editor.getLine(editor.getCursor().line).startsWith(settings.dataviewHeaderLine)
-        || editor.getLine(editor.getCursor().line - 1).startsWith(settings.dataviewHeaderLine))) {
-            return true;
-    }
-    return false;
-}
-*/
 
 // check if auto text is allowed at current cursor location in current file
 
 export function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
+    if (!editor.getLine(0).startsWith(settings.separationLineStr)) {
+        return true;
+    } 
     let dataviewLineTrack = 0;
     let isTemplate = false;
-    for (let index = 0; index < editor.getCursor().line; index++) {
+    for (let index = 1; index < editor.getCursor().line; index++) {
         let line = editor.getLine(index);
         if (line.startsWith(settings.separationLineStr)) {
             return true;
@@ -44,6 +26,7 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
     }
     return false;
 }
+
 
 //generate auto text (date + username)
 
