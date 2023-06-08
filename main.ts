@@ -47,6 +47,8 @@ export default class TextPlugin extends Plugin {
 
 	//------------------------------------------------------------------------------------------ ADDING PEOPLE
 
+
+		/*
 		// adding first person to "people list"
 
 		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
@@ -57,31 +59,36 @@ export default class TextPlugin extends Plugin {
 			}
 		});
 
+		*/
+
 		// adding people through comma (in "people list" only) or tag symbol
 
 		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
 			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
 			if (key.localeCompare(this.settings.tagSymb) == 0) {
 				openPeopleSuggestionModal(this.app, this.settings, 1);
-			} else if (editor.getLine(editor.getCursor().line).startsWith(this.settings.peopleStr) && key.localeCompare(',') == 0) {
-				openPeopleSuggestionModal(this.app, this.settings, 0);
-			}
+			} 
 		}));
 
+		/*
 		// adding people through ribbon icon
 
 		const ribbonIconAddPeople = this.addRibbonIcon('user', 'Add People', (evt: MouseEvent) => {
 			openPeopleSuggestionModal(this.app, this.settings, 2);
 		});
 
+		*/
+
 		// cursor relocation
 
+		/*
 		this.registerInterval(window.setInterval(() => {
 			let editor = this.app.workspace.activeEditor!.editor!
 			if (editor.getLine(editor.getCursor().line + 1).startsWith(this.settings.peopleStr) && editor.getCursor().ch == 0) {
 				editor.setCursor({ line: editor.getCursor().line + 1, ch: editor.getLine(editor.getCursor().line + 1).length })
 			}
 		}, 100));
+		*/
 		
 		//------------------------------------------------------------------------------------------------------------ AUTO DATE & NAME INSERTION
 
@@ -91,6 +98,7 @@ export default class TextPlugin extends Plugin {
 
 		//-------------------------------------------------------------------------------------------------------------- INSERT TEMPLATE
 
+		/*
 		setTimeout(() => {
 			this.registerEvent(this.app.vault.on('create', (file: TFile) => {
 				setTimeout(() => {
@@ -100,6 +108,8 @@ export default class TextPlugin extends Plugin {
 				}, 100);
 			}));
 		}, 100);
+		*/
+		
 	}
 
 	onunload() {

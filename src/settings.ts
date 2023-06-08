@@ -4,14 +4,12 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 export interface TextPluginSettings {
 	username: string;
 	tagSymb: string;
-    autoNotify: boolean;
-    noticeSymb: string;
+    //autoNotify: boolean;
 	lastEditDateStr: string;
 	dateFormat: string;
-    peopleStr: string;
+    //peopleStr: string;
 	peopleFilePath: string;
 	suggestionSplitStr: string;
-    newNotifFileName: string;
 	separationLineStr: string;
     templateFolderPath: string;
     dataviewHeaderLine: string;
@@ -20,16 +18,14 @@ export interface TextPluginSettings {
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	username: "user",
-	tagSymb: "@",
-    autoNotify: true,
-    noticeSymb: "!",
+	tagSymb: "~",
+    //autoNotify: true,
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
-    peopleStr: "people:",
+    //peopleStr: "people:",
 	peopleFilePath: "All/Collaborators",
 	suggestionSplitStr: "\n",
-    newNotifFileName: "notifications",
-	separationLineStr: "--",
+	separationLineStr: "___",
     templateFolderPath: "All/Templates/",
     dataviewHeaderLine: "---",
     templateDetectionStr: "type: task"
@@ -79,6 +75,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
+            /*
         new Setting(containerEl)
             .setName('Keyword: people list')
             .addText(text => text
@@ -93,6 +90,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
+            */
         new Setting(containerEl)
             .setName('Name list file')
             .setDesc('File that stores all candidates for names to be added')

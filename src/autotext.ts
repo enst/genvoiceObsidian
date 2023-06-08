@@ -4,15 +4,17 @@ import { TextPluginSettings } from './settings'
 // check if auto text is allowed at current cursor location in current file
 
 export function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
-    if (!editor.getLine(0).startsWith(settings.separationLineStr)) {
-        return true;
-    } 
     let dataviewLineTrack = 0;
     let isTemplate = false;
+    if (!(editor.getLine(editor.getCursor().line) == "")) {
+        return true;
+    }
     for (let index = 1; index < editor.getCursor().line; index++) {
         let line = editor.getLine(index);
-        if (line.startsWith(settings.separationLineStr)) {
-            return true;
+        if (dataviewLineTrack >= 2) {
+            if (!(line == "")) {
+                return true;
+            }
         }
         if (line.startsWith(settings.dataviewHeaderLine)) {
             dataviewLineTrack ++;
@@ -26,7 +28,6 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
     }
     return false;
 }
-
 
 //generate auto text (date + username)
 
