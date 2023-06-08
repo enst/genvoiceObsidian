@@ -66,7 +66,7 @@ export default class TextPlugin extends Plugin {
 		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
 			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
 			if (key.localeCompare(this.settings.tagSymb) == 0) {
-				openPeopleSuggestionModal(this.app, this.settings, 1);
+				openPeopleSuggestionModal(this.app, this.settings);
 			} 
 		}));
 

@@ -24,18 +24,23 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 					)
 				}
 			}
-		break;
+			break;
 		}
-	lineIndex ++;	
+		lineIndex ++;	
 	}
 }
 
 // generate name list and open modal
 
-export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings, caseID: number) {
-	const nameFile = app.vault.getMarkdownFiles().find((file) => file.path.localeCompare(settings.peopleFilePath + '.md') == 0);
-	const nameSuggestionList: string[] = (await app.vault.read(nameFile!)).split(settings.suggestionSplitStr);
-	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, nameSuggestionList, caseID).open();
+export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings) {
+	const files: TFile[] = app.vault.getMarkdownFiles();
+	const people: string[] = [];
+	for (let index = 0; index < files.length; index++) {
+		if (files[index].path.startsWith(settings.peopleFolderPath)) {
+			people.push(files[index].basename);
+		}
+	}
+	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, people).open();
 }
 
 // show notifications and remove tag symbols from corresponding files

@@ -9,7 +9,7 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
     if (!(editor.getLine(editor.getCursor().line) == "")) {
         return true;
     }
-    for (let index = 1; index < editor.getCursor().line; index++) {
+    for (let index = 0; index < editor.getCursor().line; index++) {
         let line = editor.getLine(index);
         if (dataviewLineTrack >= 2) {
             if (!(line == "")) {
@@ -39,7 +39,7 @@ export function generateAutoText(app: App, editor: Editor, settings: TextPluginS
         )
         editor.replaceRange(
             '\n',
-            { line: editor.getCursor().line + 1, ch: 0}
+            { line: editor.getCursor().line + 1, ch: 0 }
         )
     }
 }

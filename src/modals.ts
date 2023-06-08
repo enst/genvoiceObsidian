@@ -108,14 +108,12 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 	private editor: Editor;
 	private settings: TextPluginSettings;
 	private suggestionList: string[];
-	private caseID: number;
 
-	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[], caseID: number) {
+	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[]) {
 		super(app);
 		this.editor = editor;
 		this.settings = settings;
 		this.suggestionList = suggestionList;
-		this.caseID = caseID;
 	}
 
 	getSuggestions(query: string): string[] {
@@ -125,23 +123,11 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 		el.createEl("div", { text: item });
 	}
 	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
-		switch (this.caseID) {
-			case 0:
-				let cursorPos = this.editor.getCursor();
-				this.editor.setCursor({ line: this.editor.getCursor().line - 1, ch: 0 });
-				this.editor.replaceRange(item, cursorPos);
-				break;
-			case 1:
-				this.editor.replaceRange(
-					this.settings.tagSymb + item,
-					{ line: this.editor.getCursor().line, ch: this.editor.getCursor().ch - 1 },
-					this.editor.getCursor()
-				)
-				break;
-			case 2:
-				this.editor.replaceRange(item, this.editor.getCursor());
-				break;
-		}
+		this.editor.replaceRange(
+			this.settings.tagSymb + item,
+			{ line: this.editor.getCursor().line, ch: this.editor.getCursor().ch - 1 },
+			this.editor.getCursor()
+		)
 		updateLastEditDate(this.editor, this.settings);
 	}
 }
