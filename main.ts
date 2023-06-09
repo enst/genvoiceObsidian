@@ -109,7 +109,6 @@ export default class TextPlugin extends Plugin {
 			}));
 		}, 100);
 		*/
-		
 	}
 
 	onunload() {

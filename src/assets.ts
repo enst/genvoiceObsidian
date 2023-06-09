@@ -33,6 +33,9 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 // generate name list and open modal
 
 export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings) {
+	let editor = app.workspace.activeEditor!.editor!;
+	let location = editor.getCursor();
+	
 	const files: TFile[] = app.vault.getMarkdownFiles();
 	const people: string[] = [];
 	for (let index = 0; index < files.length; index++) {
@@ -40,7 +43,8 @@ export async function openPeopleSuggestionModal(app: App, settings: TextPluginSe
 			people.push(files[index].basename);
 		}
 	}
-	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, people).open();
+	editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 })
+	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, people, location).open();
 }
 
 // show notifications and remove tag symbols from corresponding files
@@ -59,6 +63,7 @@ export async function showNotifications(app: App, settings: TextPluginSettings) 
 
 // open template suggestion modal
 
+
 export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {
     const files: TFile[] = app.vault.getMarkdownFiles();
     const templateFiles: TFile[] = [];
@@ -69,3 +74,4 @@ export function openTemplateSuggestionModal(app: App, settings: TextPluginSettin
     }
     new TemplateSuggestionModal(app.workspace.activeEditor!.editor!, settings, templateFiles).open();
 }
+

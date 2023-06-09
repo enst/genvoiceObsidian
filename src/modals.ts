@@ -1,4 +1,4 @@
-import { SuggestModal, Editor, TFile } from 'obsidian';
+import { SuggestModal, Editor, TFile, EditorPosition } from 'obsidian';
 import { updateLastEditDate } from './assets';
 import { TextPluginSettings } from './settings';
 // mentionModal 
@@ -108,12 +108,14 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 	private editor: Editor;
 	private settings: TextPluginSettings;
 	private suggestionList: string[];
+	private insertLocation: EditorPosition;
 
-	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[]) {
+	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[], insertLocation: EditorPosition) {
 		super(app);
 		this.editor = editor;
 		this.settings = settings;
 		this.suggestionList = suggestionList;
+		this.insertLocation = insertLocation;
 	}
 
 	getSuggestions(query: string): string[] {
@@ -124,10 +126,15 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 	}
 	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
 		this.editor.replaceRange(
-			this.settings.tagSymb + item,
-			{ line: this.editor.getCursor().line, ch: this.editor.getCursor().ch - 1 },
-			this.editor.getCursor()
+			item,
+			this.insertLocation
 		)
 		updateLastEditDate(this.editor, this.settings);
+		setTimeout(() => {
+			this.editor.setCursor({
+				line: this.insertLocation.line,
+				ch: this.insertLocation.ch + item.length
+			}, 100);
+		})
 	}
 }
