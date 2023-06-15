@@ -5,16 +5,21 @@ import { TextPluginSettings } from './settings'
 
 export function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
     let dataviewLineTrack = 0;
+    let topLevelLineTrack = 0;
     let isTemplate = false;
     if (!(editor.getLine(editor.getCursor().line) == "")) {
         return true;
     }
     for (let index = 0; index < editor.getCursor().line; index++) {
         let line = editor.getLine(index);
-        if (dataviewLineTrack >= 2) {
+        if (dataviewLineTrack >= 2 && topLevelLineTrack == 1) {
             if (!(line == "")) {
                 return true;
             }
+        }
+        if (line.startsWith(settings.topLevelLine)) {
+            new Notice('query')
+            topLevelLineTrack ++;
         }
         if (line.startsWith(settings.dataviewHeaderLine)) {
             dataviewLineTrack ++;
@@ -23,7 +28,7 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
             isTemplate = true;
         }
     }
-    if (dataviewLineTrack <= 1 || !isTemplate) {
+    if (dataviewLineTrack <= 1 || !isTemplate || (topLevelLineTrack == 0)) {
         return true;
     }
     return false;

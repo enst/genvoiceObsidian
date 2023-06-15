@@ -4,13 +4,12 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 export interface TextPluginSettings {
 	username: string;
 	tagSymb: string;
-    //autoNotify: boolean;
 	lastEditDateStr: string;
 	dateFormat: string;
-    //peopleStr: string;
 	peopleFolderPath: string;
 	suggestionSplitStr: string;
 	separationLineStr: string;
+    topLevelLine: string;
     templateFolderPath: string;
     dataviewHeaderLine: string;
     templateDetectionStr: string;
@@ -19,13 +18,12 @@ export interface TextPluginSettings {
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	username: "user",
 	tagSymb: "~",
-    //autoNotify: true,
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
-    //peopleStr: "people:",
 	peopleFolderPath: "All/Collaborators/",
 	suggestionSplitStr: "\n",
 	separationLineStr: "___",
+    topLevelLine: "+++",
     templateFolderPath: "All/Templates/",
     dataviewHeaderLine: "---",
     templateDetectionStr: "type: task"
@@ -106,21 +104,6 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
-        new Setting(containerEl)
-            .setName('Name list separator')
-            .setDesc('Symbol/phrase that separates individual names in the name list file')
-            .addText(text => text
-                .setPlaceholder('default: new line')
-                .setValue(this.plugin.settings.suggestionSplitStr)
-                .onChange(async (input) => {
-                    if (input.localeCompare('') == 0) {
-                        this.plugin.settings.suggestionSplitStr = DEFAULT_SETTINGS.suggestionSplitStr!;
-                    } else {
-                        this.plugin.settings.suggestionSplitStr = input;
-                    }
-                    await this.plugin.saveSettings();
-                })
-            )
 
         containerEl.createEl('h1', { text: 'Inserting & Updating Edit Dates'});
         
@@ -154,13 +137,12 @@ export class TextPluginSettingTab extends PluginSettingTab {
                 })
             )
         
-        containerEl.createEl('h1', { text: 'Others'});
+        containerEl.createEl('h1', { text: 'Inserting Header'});
 
 		new Setting(containerEl)
-            .setName('New day separation line')
-            .setDesc('For auto insertion of date and username upon edit.')
+            .setName('Header line')
             .addText(text => text
-                .setPlaceholder('default: --')
+                .setPlaceholder('default: ___')
                 .setValue(this.plugin.settings.separationLineStr)
                 .onChange(async (input) => {
                     if (input.localeCompare('') == 0) {
@@ -173,16 +155,16 @@ export class TextPluginSettingTab extends PluginSettingTab {
             )
         
         new Setting(containerEl)
-            .setName('Template folder path')
-            .setDesc('For auto-prompt on templates upon file creation')
+            .setName('Top level content line')
+            .setDesc('To indicate content to always appear at the top')
             .addText(text => text
-                .setPlaceholder('default: templates/')
-                .setValue(this.plugin.settings.templateFolderPath)
+                .setPlaceholder('default: +++')
+                .setValue(this.plugin.settings.topLevelLine)
                 .onChange(async (input) => {
                     if (input.localeCompare('') == 0) {
-                        this.plugin.settings.templateFolderPath = DEFAULT_SETTINGS.templateFolderPath!;
+                        this.plugin.settings.topLevelLine = DEFAULT_SETTINGS.topLevelLine!;
                     } else {
-                        this.plugin.settings.templateFolderPath = input;
+                        this.plugin.settings.topLevelLine = input;
                     }
                     await this.plugin.saveSettings();
                 })
