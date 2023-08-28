@@ -13,6 +13,8 @@ export interface TextPluginSettings {
     templateFolderPath: string;
     dataviewHeaderLine: string;
     templateDetectionStr: string;
+    peopleStr: string;
+    showRemind: boolean
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
@@ -26,7 +28,9 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
     topLevelLine: "+++",
     templateFolderPath: "All/Templates/",
     dataviewHeaderLine: "---",
-    templateDetectionStr: "type: task"
+    templateDetectionStr: "type: task",
+    peopleStr: "people:",
+    showRemind: false
 };
 
 export class TextPluginSettingTab extends PluginSettingTab {
@@ -43,6 +47,20 @@ export class TextPluginSettingTab extends PluginSettingTab {
         
         containerEl.createEl('h1', { text: 'Tagging & Adding People' });
 
+        new Setting(containerEl)
+            .setName('Show reminders')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.showRemind)
+                .onChange(async (value) => {
+                    if (this.plugin.settings.showRemind) {
+                        this.plugin.settings.showRemind = false;
+                    } else {
+                        this.plugin.settings.showRemind = true;
+                    }
+                    await this.plugin.saveSettings();
+                })
+            )
+            
         new Setting(containerEl)
             .setName('Username')
             .setDesc('How other users will identify you in tags, notices, etc.')

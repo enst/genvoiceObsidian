@@ -1,7 +1,10 @@
 import { App, Editor, Notice, Plugin, moment, TFile, Command } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { updateLastEditDate, openPeopleSuggestionModal, showNotifications, openTemplateSuggestionModal } from './src/assets'
+import { openReminderModal, updateLastEditDate, openPeopleSuggestionModal, showNotifications, openTemplateSuggestionModal, openStatusSuggestionModal } from './src/assets'
 import { generateAutoText } from './src/autotext'
+import { getFiles } from './src/notifAsset'
+import { ReminderModal } from './src/modals'
+
 import { monitorEventLoopDelay } from 'perf_hooks';
 
 export default class TextPlugin extends Plugin {
@@ -10,24 +13,42 @@ export default class TextPlugin extends Plugin {
 	
 	async onload() {
 
+
+		const notifTest = this.addRibbonIcon('leaf', 'trigger notif', async (evt: MouseEvent) => {
+		})
+
+		
+
+
+
+
+
+
+
+
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
 		//------------------------------------------------------------------------------------------------ NOTIFICAITONS
 		
 		this.registerEvent(this.app.workspace.on('resize', () => {
-			showNotifications(this.app, this.settings);
+			//const notifFiles = 
 		}))
 
 		//------------------------------------------------------------------------------------------------DATE INSERTION / UDDATES
+		
 		// updates last edit date upon any changes to the editor
 
 		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
-			updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
-		})
+			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) {
+				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
+			}
+		});
 
 		this.registerEvent(this.app.workspace.on('editor-paste', () => {
-			updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
+			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) {
+				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
+			}
 		}));
 
 		// insert date at cursor place and replace latest edit date through ribbon icon
@@ -39,20 +60,6 @@ export default class TextPlugin extends Plugin {
 		});	
 
 	//------------------------------------------------------------------------------------------ ADDING PEOPLE
-
-
-		/*
-		// adding first person to "people list"
-
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			const editor = this.app.workspace.activeEditor!.editor!
-			if (editor.getLine(editor.getCursor().line).startsWith(this.settings.peopleStr) &&
-				editor.getLine(editor.getCursor().line).length <= this.settings.peopleStr.length + 1) {
-					openPeopleSuggestionModal(this.app, this.settings, 0);
-			}
-		});
-
-		*/
 
 		// adding people through comma (in "people list" only) or tag symbol
 
@@ -69,21 +76,50 @@ export default class TextPlugin extends Plugin {
 			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
 		});
 	
+		this.registerEvent(this.app.workspace.on('editor-paste', () => {
+			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
+		}));
 
 		//-------------------------------------------------------------------------------------------------------------- INSERT TEMPLATE
 
-		/*
 		setTimeout(() => {
 			this.registerEvent(this.app.vault.on('create', (file: TFile) => {
-				setTimeout(() => {
-					if (file.path.endsWith('.md')) {
+				setTimeout(async () => {
+					let content = await this.app.vault.read(file);
+					if (file.path.endsWith('.md') && content == "") {
 						openTemplateSuggestionModal(this.app, this.settings);
 					}
 				}, 100);
 			}));
 		}, 100);
-		*/
 
+		// ------------------------------------------------------------------------------------------------ STATUS MODAL
+
+
+		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => {
+			const editor = this.app.workspace.activeEditor!.editor!;
+			if (editor.getLine(editor.getCursor().line).contains('status:')) {
+				await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line);
+				editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
+			}
+		});
+
+		//-------------------------------------------------- create new notification
+
+		/*
+		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
+			const names = getDocPeople(editor, this.settings);
+			new Notice(names[1])
+		}));
+		*/
+		
+		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
+			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
+			if (key.localeCompare(this.settings.tagSymb) == 0) {
+				openPeopleSuggestionModal(this.app, this.settings);
+			} 
+		}));
+		
 	}
 
 	onunload() {

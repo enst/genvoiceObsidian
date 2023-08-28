@@ -1,8 +1,37 @@
-import { SuggestModal, Editor, TFile, EditorPosition } from 'obsidian';
-import { updateLastEditDate } from './assets';
+import { SuggestModal, Editor, TFile, EditorPosition, Modal, ButtonComponent, moment, Notice } from 'obsidian';
+import { updateLastEditDate, initTemplatePpl, assignedToUpdate } from './assets';
 import { TextPluginSettings } from './settings';
 // mentionModal 
 
+// notification modal
+
+export class ReminderModal extends Modal {
+
+	editor: Editor;
+	settings: TextPluginSettings;
+	file: TFile;
+
+	constructor(editor: Editor, settings: TextPluginSettings, file: TFile) {
+		super(app);
+		this.editor = editor;
+		this.settings = settings;
+		this.file = file;
+	}
+
+	onOpen() {
+		const reminderText = this.contentEl.createEl('h2', { text: `There are new changes in ${this.file.path}` });
+		const checkButton = new ButtonComponent(this.contentEl)
+			.setButtonText('Go to file')
+			.onClick(() => {
+				app.workspace
+			})
+		const closeButton = new ButtonComponent(this.contentEl) 
+			.setButtonText('Close tab')
+			.onClick(() => {
+				this.close();
+			})
+	}
+}
 
 // suggestion modal
 
@@ -27,11 +56,55 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 	}
 	async onChooseSuggestion(item: TFile, evt: MouseEvent | KeyboardEvent) {
 		let content: string = await this.app.vault.read(item);
-		this.editor.replaceRange(content, { line: 0, ch: 0});
+		this.editor.replaceRange(content, { line: 0, ch: 0 });
+		setTimeout(async () => {
+			let oldContent = this.editor.getValue();
+			let newContent = oldContent.replace(new RegExp('{{date}}', 'gi'), moment().format(this.settings.dateFormat)); 
+			await this.app.vault.modify(this.app.workspace.getActiveFile()!, newContent);
+			initTemplatePpl(this.app, this.editor, this.settings);
+		});
+	}
+}
+
+export class StatusSuggestionModal extends SuggestModal<string> {
+	private editor: Editor;
+	private settings: TextPluginSettings;
+	private suggestionList: string[]
+	private lineNum: number;
+	
+	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[], lineNum: number) {
+		super(app);
+		this.editor = editor;
+		this.settings = settings;
+		this.suggestionList = suggestionList;
+		this.lineNum = lineNum;
+	}
+
+	getSuggestions(query: string): string[] {
+		return (this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase()))).sort();
+	}
+
+	renderSuggestion(item: string, el: HTMLElement) {
+		el.createEl("div", { text: item });
+	}
+
+	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
+		this.editor.replaceRange(
+			'status: ' + item,
+			{ line: this.lineNum, ch: 0 },
+			{ line: this.lineNum, ch: this.editor.getLine(this.lineNum).length }
+		)
+		if (item == 'archived') {
+			let path = this.app.workspace.getActiveFile()!.path;
+			let dir: string[] = path.split('/');
+			this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${dir[dir.length - 1]}`);
+		}
 	}
 }
 
 export class PeopleSuggestionModal extends SuggestModal<string> {
+
+	  
 
 	private editor: Editor;
 	private settings: TextPluginSettings;
@@ -64,5 +137,8 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 				ch: this.insertLocation.ch + item.length
 			}, 100);
 		})
+		if (this.editor.getLine(this.insertLocation.line).startsWith('assignedTo: ')) {
+			assignedToUpdate(this.editor, this.settings, item);
+		}
 	}
 }

@@ -18,7 +18,6 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
             }
         }
         if (line.startsWith(settings.topLevelLine)) {
-            new Notice('query')
             topLevelLineTrack ++;
         }
         if (line.startsWith(settings.dataviewHeaderLine)) {
