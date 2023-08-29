@@ -18,7 +18,7 @@ export interface TextPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
-	username: "user",
+	username: "placeholder",
 	tagSymb: "~",
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
