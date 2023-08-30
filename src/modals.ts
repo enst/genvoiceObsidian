@@ -1,39 +1,8 @@
 import { SuggestModal, Editor, TFile, EditorPosition, Modal, ButtonComponent, moment, Notice } from 'obsidian';
 import { updateLastEditDate, initTemplatePpl, assignedToUpdate } from './assets';
 import { TextPluginSettings } from './settings';
-// mentionModal 
 
-// notification modal
-
-export class ReminderModal extends Modal {
-
-	editor: Editor;
-	settings: TextPluginSettings;
-	file: TFile;
-
-	constructor(editor: Editor, settings: TextPluginSettings, file: TFile) {
-		super(app);
-		this.editor = editor;
-		this.settings = settings;
-		this.file = file;
-	}
-
-	onOpen() {
-		const reminderText = this.contentEl.createEl('h2', { text: `There are new changes in ${this.file.path}` });
-		const checkButton = new ButtonComponent(this.contentEl)
-			.setButtonText('Go to file')
-			.onClick(() => {
-				app.workspace
-			})
-		const closeButton = new ButtonComponent(this.contentEl) 
-			.setButtonText('Close tab')
-			.onClick(() => {
-				this.close();
-			})
-	}
-}
-
-// suggestion modal
+// template 选择弹出窗口
 
 export class TemplateSuggestionModal extends SuggestModal<TFile> {
 
@@ -54,6 +23,9 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 	renderSuggestion(item: TFile, el: HTMLElement) {
 		el.createEl("div", { text: item.path.substring(this.settings.templateFolderPath.length, item.path.length - 3) })
 	}
+
+	// 选择时触发
+
 	async onChooseSuggestion(item: TFile, evt: MouseEvent | KeyboardEvent) {
 		let content: string = await this.app.vault.read(item);
 		this.editor.replaceRange(content, { line: 0, ch: 0 });
@@ -65,6 +37,8 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 		});
 	}
 }
+
+// 文档 status 选择弹出窗口
 
 export class StatusSuggestionModal extends SuggestModal<string> {
 	private editor: Editor;
@@ -102,9 +76,9 @@ export class StatusSuggestionModal extends SuggestModal<string> {
 	}
 }
 
-export class PeopleSuggestionModal extends SuggestModal<string> {
+// 人名选择弹出窗口
 
-	  
+export class PeopleSuggestionModal extends SuggestModal<string> {
 
 	private editor: Editor;
 	private settings: TextPluginSettings;

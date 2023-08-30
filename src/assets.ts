@@ -1,8 +1,8 @@
 import { App, Editor, moment, TFile, Notice } from 'obsidian'
 import { TextPluginSettings } from './settings'
-import { PeopleSuggestionModal, TemplateSuggestionModal, ReminderModal, StatusSuggestionModal } from './modals'
+import { PeopleSuggestionModal, TemplateSuggestionModal, StatusSuggestionModal } from './modals'
 
-// automaticaly updates latest edit date
+// 自动更新最近更改日期
 
 export function updateLastEditDate(editor: Editor, settings: TextPluginSettings) {
 	let lineIndex = 0;
@@ -30,18 +30,7 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 	}
 }
 
-export async function openReminderModal(app: App, settings: TextPluginSettings) {
-	let editor = app.workspace.activeEditor!.editor!;
-	const files: TFile[] = app.vault.getMarkdownFiles();
-	for (let index = 0; index < files.length; index++) {
-		let content = await app.vault.read(files[index]);
-		if (content.contains('!!!')) {
-			new ReminderModal(editor, settings, files[index]).open();
-		}
-	}
-}
-
-// generate name list and open modal
+// 从文件夹提取所有人名，并弹出人名选择窗口
 
 export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings) {
 	let editor = app.workspace.activeEditor!.editor!;
@@ -58,21 +47,7 @@ export async function openPeopleSuggestionModal(app: App, settings: TextPluginSe
 	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, people, location).open();
 }
 
-// show notifications and remove tag symbols from corresponding files
-
-export async function showNotifications(app: App, settings: TextPluginSettings) {
-	const files: TFile[] = this.app.vault.getMarkdownFiles();
-	for (let index = 0; index < files.length; index++) {
-		let oldContent: string = await this.app.vault.read(files[index]);
-		if (oldContent.contains(settings.tagSymb + settings.username)) {
-			new Notice('You have a new mention in ' + files[index].path);
-			let newContent: string = oldContent.replace(new RegExp(settings.tagSymb + settings.username, 'gi'), settings.username);
-			app.vault.modify(files[index], newContent);
-		}
-	}
-}
-
-// open status suggestion modal
+// 弹出文件 status 选择窗口
 
 export async function openStatusSuggestionModal(app: App, settings: TextPluginSettings, lineNum: number) {
 	const files: TFile[] = app.vault.getMarkdownFiles().filter((file) => file.path.startsWith('All/status'));
@@ -81,7 +56,7 @@ export async function openStatusSuggestionModal(app: App, settings: TextPluginSe
 	new StatusSuggestionModal(app.workspace.activeEditor!.editor!, settings, statusOptions, lineNum).open();
 }
 
-// open template suggestion modal
+// 弹出文件 template 选择窗口
 
 export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {
     const files: TFile[] = app.vault.getMarkdownFiles();
@@ -93,6 +68,8 @@ export function openTemplateSuggestionModal(app: App, settings: TextPluginSettin
     }
     new TemplateSuggestionModal(app.workspace.activeEditor!.editor!, settings, templateFiles).open();
 }
+
+// 在插入 template 时，自动更改日期以及创建者等信息
 
 export function initTemplatePpl (app: App, editor: Editor, settings: TextPluginSettings) {
 	for (let index = 0; index < 20; index++) {
@@ -110,6 +87,8 @@ export function initTemplatePpl (app: App, editor: Editor, settings: TextPluginS
 		}
 	}
 }
+
+// 在 assignedTo：前插入人名时，自动更新 people：前的名单
 
 export function assignedToUpdate(editor: Editor, settings: TextPluginSettings, name: string) {
 	let lineIndex = 0;

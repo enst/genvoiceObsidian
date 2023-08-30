@@ -1,9 +1,9 @@
 import { App, Editor, moment, Notice } from 'obsidian'
 import { TextPluginSettings } from './settings'
 
-// check if auto text is allowed at current cursor location in current file
+// 检测当前文档是否符合 header 插入的要求
 
-export function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
+function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
     let dataviewLineTrack = 0;
     let topLevelLineTrack = 0;
     let isTemplate = false;
@@ -33,7 +33,7 @@ export function disableAutoText(app: App, editor: Editor, settings: TextPluginSe
     return false;
 }
 
-//generate auto text (date + username)
+// 自动插入 header 以及更改人信息
 
 export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
     if (!disableAutoText(app, editor, settings)) {
