@@ -1,21 +1,23 @@
 import TextPlugin from "../main";
 import { App, PluginSettingTab, Setting } from "obsidian";
 
+// 设置里可改数据
+
 export interface TextPluginSettings {
-	username: string;
-	tagSymb: string;
-	lastEditDateStr: string;
-	dateFormat: string;
-	peopleFolderPath: string;
-	suggestionSplitStr: string;
-	separationLineStr: string;
-    topLevelLine: string;
-    templateFolderPath: string;
+	username: string; // 个人名称
+	tagSymb: string; // 自动插入人名时所用的快捷键
+	lastEditDateStr: string; // 代表最近更改日期的字符
+	dateFormat: string; // 插入日期的格式
+	peopleFolderPath: string; // 用来提取所有人名的文件夹 path
+	separationLineStr: string; // 自动插入 header 时的 header 分界线
+    topLevelLine: string; // type：task 文档置顶内容的分界线 （以上内容置顶）
+    templateFolderPath: string; // 用来提取 template 的文件夹 path
     dataviewHeaderLine: string;
-    templateDetectionStr: string;
-    peopleStr: string;
-    showRemind: boolean
+    templateDetectionStr: string; // 用来检测当前文档是不是指定的 template
+    peopleStr: string; // 代表文档相关人员的字符
 }
+
+// 默认设置
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	username: "placeholder",
@@ -23,15 +25,15 @@ export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
 	peopleFolderPath: "All/Collaborators/",
-	suggestionSplitStr: "\n",
 	separationLineStr: "___",
     topLevelLine: "+++",
     templateFolderPath: "All/Templates/",
     dataviewHeaderLine: "---",
     templateDetectionStr: "type: task",
     peopleStr: "people:",
-    showRemind: false
 };
+
+// 搭建设置 interface
 
 export class TextPluginSettingTab extends PluginSettingTab {
     plugin: TextPlugin;
@@ -46,20 +48,6 @@ export class TextPluginSettingTab extends PluginSettingTab {
         containerEl.empty();
         
         containerEl.createEl('h1', { text: 'Tagging & Adding People' });
-
-        new Setting(containerEl)
-            .setName('Show reminders')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.showRemind)
-                .onChange(async (value) => {
-                    if (this.plugin.settings.showRemind) {
-                        this.plugin.settings.showRemind = false;
-                    } else {
-                        this.plugin.settings.showRemind = true;
-                    }
-                    await this.plugin.saveSettings();
-                })
-            )
             
         new Setting(containerEl)
             .setName('Username')
@@ -91,22 +79,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             )
-            /*
-        new Setting(containerEl)
-            .setName('Keyword: people list')
-            .addText(text => text
-                .setPlaceholder('default: people:')
-                .setValue(this.plugin.settings.peopleStr)
-                .onChange(async (input) => {
-                    if (input.localeCompare('') == 0) {
-                        this.plugin.settings.peopleStr = DEFAULT_SETTINGS.peopleStr!;
-                    } else {
-                        this.plugin.settings.peopleStr = input;
-                    }
-                    await this.plugin.saveSettings();
-                })
-            )
-            */
+
         new Setting(containerEl)
             .setName('Name list file')
             .setDesc('File that stores all candidates for names to be added')

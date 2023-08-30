@@ -1,125 +1,120 @@
 import { App, Editor, Notice, Plugin, moment, TFile, Command } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { openReminderModal, updateLastEditDate, openPeopleSuggestionModal, showNotifications, openTemplateSuggestionModal, openStatusSuggestionModal } from './src/assets'
+import { updateLastEditDate, openPeopleSuggestionModal, openTemplateSuggestionModal, openStatusSuggestionModal } from './src/assets'
 import { generateAutoText } from './src/autotext'
-import { getFiles } from './src/notifAsset'
-import { ReminderModal } from './src/modals'
-
-import { monitorEventLoopDelay } from 'perf_hooks';
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
 
-	
+	// obsidian 启动时激活
+
 	async onload() {
 
-
-		const notifTest = this.addRibbonIcon('leaf', 'trigger notif', async (evt: MouseEvent) => {
-		})
-
-		
-
-
-
-
-
-
-
+		// 加载 settings
 
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
-		//------------------------------------------------------------------------------------------------ NOTIFICAITONS
 		
-		this.registerEvent(this.app.workspace.on('resize', () => {
-			//const notifFiles = 
-		}))
 
-		//------------------------------------------------------------------------------------------------DATE INSERTION / UDDATES
+
+		// 功能：文档被更改时，自动更新最近更改日期
+		//	- this.app.workspace.getActiveFile()!.path 返回当前打开文档的 path (e.g. All/intern/travelPlanner.md)
+		//	- this.settings 信息可以在 ./src/settings.ts 找到
+		//	- updateLastEditDate() 可在 ./src/assets.ts 找到
 		
-		// updates last edit date upon any changes to the editor
-
-		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
-			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) {
-				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
+	
+		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => { // 有任何改动时触发
+			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) { // 确保当前文档不是 template 文档
+				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings); // 更改日期
 			}
 		});
 
-		this.registerEvent(this.app.workspace.on('editor-paste', () => {
-			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) {
-				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings);
+
+
+
+		// 功能：在文档粘贴内容时，自动更新最近更改日期
+
+		this.registerEvent(this.app.workspace.on('editor-paste', () => { // 有任何粘贴时触发
+			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) { // 确保当前文档不是 template 文档
+				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings); // 更改日期
 			}
 		}));
 
-		// insert date at cursor place and replace latest edit date through ribbon icon
+
+
+
+		// 功能：点击左工具栏图标直接插入今天日期
+		//	- this.addRibbonIcon() 会在左工具栏新加图标 (此功能用了 calendar 图标)
+		//	- this.app.workspace.activeEditor!.editor! 返回当前文档使用的 editor
+		//	- editor.replaceRange(content, editor.getCursor()) 在当前鼠标位置插入 content
 
 		const ribbonIconInsertDate = this.addRibbonIcon('calendar', 'Insert Date', (evt: MouseEvent) => {
 			let editor = this.app.workspace.activeEditor!.editor!;
-			editor.replaceRange(moment().format(this.settings.dateFormat), editor.getCursor());
-			updateLastEditDate(editor, this.settings);
+			editor.replaceRange(moment().format(this.settings.dateFormat), editor.getCursor()); // 插入今日日期
+			updateLastEditDate(editor, this.settings); // 顺便自动更改最近更改日期
 		});	
 
-	//------------------------------------------------------------------------------------------ ADDING PEOPLE
 
-		// adding people through comma (in "people list" only) or tag symbol
 
-		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
-			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
-			if (key.localeCompare(this.settings.tagSymb) == 0) {
-				openPeopleSuggestionModal(this.app, this.settings);
+
+
+		// 功能：通过 ～ 来插入人名
+		//	- openPeopleSuggestionModal() 可在 ./src/assets.ts 找到
+
+		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => { // 文档有改动时触发
+			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1); // 提取最近输入的字母
+			if (key.localeCompare(this.settings.tagSymb) == 0) { // 如果最近输入是 ～
+				openPeopleSuggestionModal(this.app, this.settings); // 人名选择窗口弹出
 			} 
 		}));
 		
-		//------------------------------------------------------------------------------------------------------------ AUTO DATE & NAME INSERTION
 
-		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => {
+
+
+		// 功能：更改或粘贴时，插入更改 header （只在 type：task 文档生效）
+		//	generateAutoText() 可在 ./src/autotext.ts 找到
+
+		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => { // 更改时
 			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
 		});
 	
-		this.registerEvent(this.app.workspace.on('editor-paste', () => {
+		this.registerEvent(this.app.workspace.on('editor-paste', () => { // 粘贴时
 			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
 		}));
 
-		//-------------------------------------------------------------------------------------------------------------- INSERT TEMPLATE
+
+
+
+		// 功能：创建文件时，自动插入template
+		//	- setTimeout 用来防止 obsidian 启动时触发
+		//	- openTemplateSuggestionModal 可在 ./src/assets.ts 找到
 
 		setTimeout(() => {
-			this.registerEvent(this.app.vault.on('create', (file: TFile) => {
+			this.registerEvent(this.app.vault.on('create', (file: TFile) => { // 创建文档时触发
 				setTimeout(async () => {
-					let content = await this.app.vault.read(file);
-					if (file.path.endsWith('.md') && content == "") {
-						openTemplateSuggestionModal(this.app, this.settings);
+					let content = await this.app.vault.read(file); // 提取文档内容
+					if (file.path.endsWith('.md') && content == "") { // 确认创建的是 md 文档，并且为空文档
+						openTemplateSuggestionModal(this.app, this.settings); // 弹出 template 选择窗口
 					}
 				}, 100);
 			}));
 		}, 100);
 
-		// ------------------------------------------------------------------------------------------------ STATUS MODAL
+	
 
 
-		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => {
+
+		// 功能：自动弹出 status 选择窗口
+		// - openStatusSuggestionModal 可在 ./src/assets.ts 找到
+
+		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => { // 任何点击时触发
 			const editor = this.app.workspace.activeEditor!.editor!;
-			if (editor.getLine(editor.getCursor().line).contains('status:')) {
-				await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line);
+			if (editor.getLine(editor.getCursor().line).contains('status:')) { // 如果点击在 status：同一行
+				await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line); // 打开 status 选择窗口
 				editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
 			}
 		});
-
-		//-------------------------------------------------- create new notification
-
-		/*
-		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
-			const names = getDocPeople(editor, this.settings);
-			new Notice(names[1])
-		}));
-		*/
-		
-		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => {
-			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1);
-			if (key.localeCompare(this.settings.tagSymb) == 0) {
-				openPeopleSuggestionModal(this.app, this.settings);
-			} 
-		}));
-		
 	}
 
 	onunload() {
