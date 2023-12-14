@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-genvoice-plugin",
-	"version": "1.0.9",
+	"version": "1.0.10",
 	"description": "This is the GenVoice plugin for Obsidian (https://obsidian.md)",
 	"main": "main.js",
 	"scripts": {
