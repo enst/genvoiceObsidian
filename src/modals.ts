@@ -62,7 +62,7 @@ export class StatusSuggestionModal extends SuggestModal<string> {
 		el.createEl("div", { text: item });
 	}
 
-	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
+	async onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
 		this.editor.replaceRange(
 			'status: ' + item,
 			{ line: this.lineNum, ch: 0 },
@@ -71,7 +71,10 @@ export class StatusSuggestionModal extends SuggestModal<string> {
 		if (item == 'archived') {
 			let path = this.app.workspace.getActiveFile()!.path;
 			let dir: string[] = path.split('/');
-			this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${dir[dir.length - 1]}`);
+			if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${moment().format('YYYY')}`) ) {
+				await this.app.vault.createFolder(`${dir[0]}/_Archived/${moment().format('YYYY')}`)
+			}
+			this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
 		}
 	}
 }

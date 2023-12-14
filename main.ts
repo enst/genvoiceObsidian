@@ -55,9 +55,22 @@ export default class TextPlugin extends Plugin {
 			updateLastEditDate(editor, this.settings); // 顺便自动更改最近更改日期
 		});	
 
+		// 功能： 监听metadataCache改变
+		// cache.frontmatter?.status === 'archived' 
+		// 归档到当年文件夹
 
-
-
+		this.registerEvent(this.app.metadataCache.on("changed", async (file , data, cache) => { // metadataCache有改动时触发
+			let path = this.app.workspace.getActiveFile()!.path;
+			let dir: string[] = path.split('/');
+			
+			if (cache.frontmatter?.status === 'archived') {
+				if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${moment().format('YYYY')}`) ) {
+					await this.app.vault.createFolder(`${dir[0]}/_Archived/${moment().format('YYYY')}`)
+				}
+				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
+			}
+			
+		}));
 
 		// 功能：通过 ～ 来插入人名
 		//	- openPeopleSuggestionModal() 可在 ./src/assets.ts 找到
@@ -104,13 +117,13 @@ export default class TextPlugin extends Plugin {
 	
 
 
-
+		
 		// 功能：自动弹出 status 选择窗口
 		// - openStatusSuggestionModal 可在 ./src/assets.ts 找到
-
+		
 		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => { // 任何点击时触发
-			const editor = this.app.workspace.activeEditor!.editor!;
-			if (editor.getLine(editor.getCursor().line).contains('status:')) { // 如果点击在 status：同一行
+				const editor = this.app.workspace.activeEditor!.editor!;
+				if (editor.getLine(editor.getCursor().line).contains('status:')) { // 如果点击在 status：同一行
 				await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line); // 打开 status 选择窗口
 				editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
 			}
