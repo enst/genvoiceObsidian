@@ -105,13 +105,14 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 	onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
 		this.editor.replaceRange(
 			item,
-			this.insertLocation
+			{line: this.insertLocation.line, ch: this.insertLocation.ch - 1},
+			{line: this.insertLocation.line, ch: this.insertLocation.ch}
 		)
 		updateLastEditDate(this.editor, this.settings);
 		setTimeout(() => {
 			this.editor.setCursor({
 				line: this.insertLocation.line,
-				ch: this.insertLocation.ch + item.length
+				ch: this.insertLocation.ch + item.length - 1
 			}, 100);
 		})
 		if (this.editor.getLine(this.insertLocation.line).startsWith('assignedTo: ')) {

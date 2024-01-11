@@ -7,6 +7,10 @@ function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings)
     let dataviewLineTrack = 0;
     let topLevelLineTrack = 0;
     let isTemplate = false;
+    const metadata = this.app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
+    if (typeof metadata.people === 'string' || ( metadata.people instanceof Array && metadata.people.length) ) {
+        isTemplate = true;
+    }
     if (!(editor.getLine(editor.getCursor().line) == "")) {
         return true;
     }
@@ -23,9 +27,9 @@ function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings)
         if (line.startsWith(settings.dataviewHeaderLine)) {
             dataviewLineTrack ++;
         }
-        if (line.startsWith(settings.templateDetectionStr)) {
-            isTemplate = true;
-        }
+        // if (line.startsWith(settings.templateDetectionStr)) {
+        //     isTemplate = true;
+        // }
     }
     if (dataviewLineTrack <= 1 || !isTemplate || (topLevelLineTrack == 0)) {
         return true;
