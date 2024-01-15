@@ -60,9 +60,9 @@ export default class TextPlugin extends Plugin {
 		// 归档到当年文件夹
 
 		this.registerEvent(this.app.metadataCache.on("changed", async (file , data, cache) => { // metadataCache有改动时触发
-			let path = this.app.workspace.getActiveFile()!.path;
+			// let path = this.app.workspace.getActiveFile()!.path;
+			let path = file.path
 			let dir: string[] = path.split('/');
-			
 			if (cache.frontmatter?.status === 'archived') {
 				if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${moment().format('YYYY')}`) ) {
 					await this.app.vault.createFolder(`${dir[0]}/_Archived/${moment().format('YYYY')}`)
