@@ -8,7 +8,8 @@ function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings)
     let topLevelLineTrack = 0;
     let isTemplate = false;
     const metadata = this.app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
-    if (typeof metadata.people === 'string' || ( metadata.people instanceof Array && metadata.people.length) ) {
+    // if (typeof metadata.people === 'string' || ( metadata.people instanceof Array && metadata.people.length) ) {
+    if (metadata.hasOwnProperty('people')) {
         isTemplate = true;
     }
     if (!(editor.getLine(editor.getCursor().line) == "")) {
