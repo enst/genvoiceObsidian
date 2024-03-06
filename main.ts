@@ -122,8 +122,8 @@ export default class TextPlugin extends Plugin {
 		// - openStatusSuggestionModal 可在 ./src/assets.ts 找到
 		
 		this.registerDomEvent(document, 'click', async (evt: MouseEvent) => { // 任何点击时触发
-				const editor = this.app.workspace.activeEditor!.editor!;
-				if (editor.getLine(editor.getCursor().line).contains('status:')) { // 如果点击在 status：同一行
+				const editor = this.app?.workspace?.activeEditor?.editor!;
+				if (editor?.getLine(editor.getCursor().line).contains('status:')) { // 如果点击在 status：同一行
 				await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line); // 打开 status 选择窗口
 				editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
 			}
