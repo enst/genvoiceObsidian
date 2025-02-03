@@ -62,14 +62,19 @@ export default class TextPlugin extends Plugin {
 		this.registerEvent(this.app.metadataCache.on("changed", async (file , data, cache) => { // metadataCache有改动时触发
 			// let path = this.app.workspace.getActiveFile()!.path;
 			let path = file.path
+			let archivedFolderName = '_Archived'
 			let dir: string[] = path.split('/');
 			if (cache.frontmatter?.status === 'archived') {
-				if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${moment().format('YYYY')}`) ) {
-					await this.app.vault.createFolder(`${dir[0]}/_Archived/${moment().format('YYYY')}`)
+				if (path.includes(archivedFolderName)) {
+					// console.log('已经在_Archived里了')
+					return 
+				}
+				if (!await this.app.vault.adapter.exists(`${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}`) ) {
+					await this.app.vault.createFolder(`${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}`)
 				}
 				// const fileName = dir[dir.length - 1].split('.')[0] + '[' + moment().format('YYYYMMDD hhmm') + '].' + dir[dir.length - 1].split('.')[1]
 				// this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${fileName}`);
-				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
+				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
 			}
 			
 		}));
