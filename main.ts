@@ -69,12 +69,13 @@ export default class TextPlugin extends Plugin {
 					// console.log('已经在_Archived里了')
 					return 
 				}
-				if (!await this.app.vault.adapter.exists(`${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}`) ) {
-					await this.app.vault.createFolder(`${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}`)
+				const archivedFolderPath = `${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}/${moment().format('MM')}`
+				if (!await this.app.vault.adapter.exists(archivedFolderPath) ) {
+					await this.app.vault.createFolder(archivedFolderPath)
 				}
 				// const fileName = dir[dir.length - 1].split('.')[0] + '[' + moment().format('YYYYMMDD hhmm') + '].' + dir[dir.length - 1].split('.')[1]
 				// this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${fileName}`);
-				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/${archivedFolderName}/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
+				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${archivedFolderPath}/${dir[dir.length - 1]}`);
 			}
 			
 		}));
