@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-genvoice-plugin",
 	"name": "GenVoice Plugin",
-	"version": "1.0.18",
+	"version": "1.0.25",
 	"minAppVersion": "0.15.0",
 	"description": "This is the Obsidian plugin by GenVoice, offering functionalities in real-time date update and shortcuts in adding collaborator names.",
 	"author": "GenVoice",

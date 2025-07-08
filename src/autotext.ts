@@ -7,16 +7,21 @@ function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings)
     let dataviewLineTrack = 0;
     let topLevelLineTrack = 0;
     let isTemplate = false;
-    const metadata = this.app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
+    const metadata = app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
     // if (typeof metadata.people === 'string' || ( metadata.people instanceof Array && metadata.people.length) ) {
-    if (metadata.hasOwnProperty('people')) {
+    if (metadata && metadata.hasOwnProperty('people')) {
         isTemplate = true;
     }
-    if (!(editor.getLine(editor.getCursor().line) == "")) {
+
+    if (editor.getLine(editor.getCursor().line).length === 0) {
         return true;
     }
+    // console.log("disableAutoText: " + line.length + " " + line);
+
     for (let index = 0; index < editor.getCursor().line; index++) {
-        let line = editor.getLine(index);
+        const line = editor.getLine(index);
+        // console.log("disableAutoText: " + line.length + " " + line);
+        // console.log("disableAutoText: " + dataviewLineTrack + " " + topLevelLineTrack);
         if (dataviewLineTrack >= 2 && topLevelLineTrack == 1) {
             if (!(line == "")) {
                 return true;

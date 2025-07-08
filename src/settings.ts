@@ -5,7 +5,6 @@ import { App, PluginSettingTab, Setting } from "obsidian";
 
 export interface TextPluginSettings {
 	username: string; // 个人名称
-	tagSymb: string; // 自动插入人名时所用的快捷键
 	lastEditDateStr: string; // 代表最近更改日期的字符
 	dateFormat: string; // 插入日期的格式
 	peopleFolderPath: string; // 用来提取所有人名的文件夹 path
@@ -21,7 +20,6 @@ export interface TextPluginSettings {
 
 export const DEFAULT_SETTINGS: Partial<TextPluginSettings> = {
 	username: "placeholder",
-	tagSymb: "~",
 	lastEditDateStr: "updatedDate:",
 	dateFormat: "YYYY-MM-DD",
 	peopleFolderPath: "All/Collaborators/",
@@ -46,9 +44,8 @@ export class TextPluginSettingTab extends PluginSettingTab {
     display(): void {
         let { containerEl } = this;
         containerEl.empty();
-        
         containerEl.createEl('h1', { text: 'Tagging & Adding People' });
-            
+
         new Setting(containerEl)
             .setName('Username')
             .setDesc('How other users will identify you in tags, notices, etc.')
@@ -63,22 +60,7 @@ export class TextPluginSettingTab extends PluginSettingTab {
                     }
                     await this.plugin.saveSettings();
                 })
-            )
-        new Setting(containerEl)
-            .setName('Tag indicator')
-            .setDesc('A character/string you and other users will use to tag each other.')
-            .addText(text => text
-                .setPlaceholder('default: @')
-                .setValue(this.plugin.settings.tagSymb)
-                .onChange(async (input) => {
-                    if (input.localeCompare('') == 0) {
-                        this.plugin.settings.tagSymb = DEFAULT_SETTINGS.tagSymb!;
-                    } else {
-                        this.plugin.settings.tagSymb = input;
-                    }
-                    await this.plugin.saveSettings();
-                })
-            )
+            );
 
         new Setting(containerEl)
             .setName('Name list file')

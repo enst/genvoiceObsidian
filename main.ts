@@ -5,6 +5,7 @@ import { generateAutoText } from './src/autotext'
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
+	private isUpdating: boolean = false; // 防止递归
 
 	// obsidian 启动时激活
 
@@ -15,35 +16,24 @@ export default class TextPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 
-		
-
-
+/*
 		// 功能：文档被更改时，自动更新最近更改日期
 		//	- this.app.workspace.getActiveFile()!.path 返回当前打开文档的 path (e.g. All/intern/travelPlanner.md)
 		//	- this.settings 信息可以在 ./src/settings.ts 找到
 		//	- updateLastEditDate() 可在 ./src/assets.ts 找到
 		
-	
 		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => { // 有任何改动时触发
 			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) { // 确保当前文档不是 template 文档
 				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings); // 更改日期
 			}
 		});
-
-
-
-
 		// 功能：在文档粘贴内容时，自动更新最近更改日期
-
 		this.registerEvent(this.app.workspace.on('editor-paste', () => { // 有任何粘贴时触发
 			if (!this.app.workspace.getActiveFile()!.path.startsWith(this.settings.templateFolderPath)) { // 确保当前文档不是 template 文档
 				updateLastEditDate(this.app.workspace.activeEditor!.editor!, this.settings); // 更改日期
 			}
 		}));
-
-
-
-
+*/
 		// 功能：点击左工具栏图标直接插入今天日期
 		//	- this.addRibbonIcon() 会在左工具栏新加图标 (此功能用了 calendar 图标)
 		//	- this.app.workspace.activeEditor!.editor! 返回当前文档使用的 editor
@@ -80,31 +70,16 @@ export default class TextPlugin extends Plugin {
 			
 		}));
 
-		// 功能：通过 ～ 来插入人名
-		//	- openPeopleSuggestionModal() 可在 ./src/assets.ts 找到
-
-		this.registerEvent(this.app.workspace.on('editor-change', (editor: Editor) => { // 文档有改动时触发
-			const key = editor.getLine(editor.getCursor().line).charAt(editor.getCursor().ch - 1); // 提取最近输入的字母
-			if (key.localeCompare(this.settings.tagSymb) == 0) { // 如果最近输入是 ～
-				openPeopleSuggestionModal(this.app, this.settings); // 人名选择窗口弹出
-			} 
-		}));
-		
-
-
-
 		// 功能：更改或粘贴时，插入更改 header （只在 type：task 文档生效）
 		//	generateAutoText() 可在 ./src/autotext.ts 找到
 
-		this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => { // 更改时
+		/*this.registerDomEvent(document, 'keypress', (evt: KeyboardEvent) => { // 更改时
 			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
 		});
 	
 		this.registerEvent(this.app.workspace.on('editor-paste', () => { // 粘贴时
 			generateAutoText(this.app, this.app.workspace.activeEditor!.editor!, this.settings);
-		}));
-
-
+		}));*/
 
 
 		// 功能：创建文件时，自动插入template
@@ -118,13 +93,9 @@ export default class TextPlugin extends Plugin {
 					if (file.path.endsWith('.md') && content == "") { // 确认创建的是 md 文档，并且为空文档
 						openTemplateSuggestionModal(this.app, this.settings); // 弹出 template 选择窗口
 					}
-				}, 100);
+				}, 500);
 			}));
-		}, 100);
-
-	
-
-
+		}, 1000);
 		
 		// 功能：自动弹出 status 选择窗口
 		// - openStatusSuggestionModal 可在 ./src/assets.ts 找到
@@ -136,6 +107,25 @@ export default class TextPlugin extends Plugin {
 				editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
 			}
 		});
+
+
+		this.registerEvent(
+			this.app.workspace.on('editor-change', (editor: Editor) => {
+				const file = this.app.workspace.getActiveFile();
+				if (!editor || !file) return;
+
+				if (this.isUpdating) return; // 防止递归
+				this.isUpdating = true;
+				try {
+					if (!file.path.startsWith(this.settings.templateFolderPath)) {
+						updateLastEditDate(editor, this.settings);
+					}
+					generateAutoText(this.app, editor, this.settings);
+				} finally {
+					this.isUpdating = false;
+				}
+			})
+		);
 	}
 
 	onunload() {
