@@ -39,11 +39,11 @@ export default class TextPlugin extends Plugin {
 		//	- this.app.workspace.activeEditor!.editor! 返回当前文档使用的 editor
 		//	- editor.replaceRange(content, editor.getCursor()) 在当前鼠标位置插入 content
 
-		const ribbonIconInsertDate = this.addRibbonIcon('calendar', 'Insert Date', (evt: MouseEvent) => {
-			let editor = this.app.workspace.activeEditor!.editor!;
-			editor.replaceRange(moment().format(this.settings.dateFormat), editor.getCursor()); // 插入今日日期
-			updateLastEditDate(editor, this.settings); // 顺便自动更改最近更改日期
-		});	
+		// const ribbonIconInsertDate = this.addRibbonIcon('calendar', 'Insert Date', (evt: MouseEvent) => {
+		// 	let editor = this.app.workspace.activeEditor!.editor!;
+		// 	editor.replaceRange(moment().format(this.settings.dateFormat), editor.getCursor()); // 插入今日日期
+		// 	updateLastEditDate(editor, this.settings); // 顺便自动更改最近更改日期
+		// });	
 
 		// 功能： 监听metadataCache改变
 		// cache.frontmatter?.status === 'archived' 

@@ -141,8 +141,7 @@ var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
     this.editor.replaceRange(content, { line: 0, ch: 0 });
     let oldContent = this.editor.getValue();
     let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
-  - ${this.settings.username}`).replace("createdBy: ", `createdBy:
-  - ${this.settings.username}`);
+  - ${this.settings.username}`).replace("createdBy: ", `createdBy: ${this.settings.username}`);
     await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
     return;
     const peopleFiles = this.app.vault.getMarkdownFiles().filter(
@@ -281,11 +280,6 @@ var TextPlugin = class extends import_obsidian5.Plugin {
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new TextPluginSettingTab(this.app, this));
-    const ribbonIconInsertDate = this.addRibbonIcon("calendar", "Insert Date", (evt) => {
-      let editor = this.app.workspace.activeEditor.editor;
-      editor.replaceRange((0, import_obsidian5.moment)().format(this.settings.dateFormat), editor.getCursor());
-      updateLastEditDate(editor, this.settings);
-    });
     this.registerEvent(this.app.metadataCache.on("changed", async (file, data, cache) => {
       var _a;
       let path = file.path;

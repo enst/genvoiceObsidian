@@ -33,7 +33,7 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 		let oldContent = this.editor.getValue();
 		let newContent = oldContent.replace(new RegExp('{{date}}', 'gi'), moment().format(this.settings.dateFormat))
 			.replace('people: ', `people:\n  - ${this.settings.username}`)
-			.replace('createdBy: ', `createdBy:\n  - ${this.settings.username}`);
+			.replace('createdBy: ', `createdBy: ${this.settings.username}`);
 		await this.app.vault.modify(this.app.workspace.getActiveFile()!, newContent);
 		
 		return;
