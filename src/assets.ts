@@ -60,16 +60,9 @@ export async function openStatusSuggestionModal(app: App, settings: TextPluginSe
 
 export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {
     const files: TFile[] = app.vault.getMarkdownFiles();
-    const templateFiles: TFile[] = [];
-    for (let index = 0; index < files.length; index++) {
-        if (files[index].path.startsWith(settings.templateFolderPath)) {
-            templateFiles.push(files[index]);
-        }
-    }
+    const templateFiles = files.filter(file => file.path.startsWith(settings.templateFolderPath));
     new TemplateSuggestionModal(app.workspace.activeEditor!.editor!, settings, templateFiles).open();
 }
-
-// 在插入 template 时，自动更改日期以及创建者等信息
 
 export function initTemplatePpl (app: App, editor: Editor, settings: TextPluginSettings) {
 	for (let index = 0; index < 20; index++) {
@@ -96,7 +89,7 @@ export function assignedToUpdate(editor: Editor, settings: TextPluginSettings, n
 		let line = editor.getLine(lineIndex)
 		if (line.startsWith(settings.peopleStr) && !line.contains(name)) {
 			editor.replaceRange(
-				',~' + name,
+				',' + name,
 				{ line: lineIndex, ch: editor.getLine(lineIndex).length }
 			)
 			break;

@@ -139,20 +139,44 @@ var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
   async onChooseSuggestion(item, evt) {
     let content = await this.app.vault.read(item);
     this.editor.replaceRange(content, { line: 0, ch: 0 });
-    setTimeout(async () => {
-      let oldContent = this.editor.getValue();
-      let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people: ${this.settings.username}`).replace("createdBy: ", `createdBy: ${this.settings.username}`);
-      await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
-    });
+    let oldContent = this.editor.getValue();
+    let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
+  - ${this.settings.username}`).replace("createdBy: ", `createdBy:
+  - ${this.settings.username}`);
+    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
+    return;
+    const peopleFiles = this.app.vault.getMarkdownFiles().filter(
+      (file) => file.path.startsWith(this.settings.peopleFolderPath)
+    );
+    const people = peopleFiles.map((file) => file.basename);
+    const lines = this.editor.getValue().split("\n");
+    let assignedToLine = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith("assignedTo:")) {
+        assignedToLine = i;
+        break;
+      }
+    }
+    if (assignedToLine >= 0) {
+      const modal = new PeopleSuggestionModal(
+        this.editor,
+        this.settings,
+        people,
+        // 用 people 而不是模板文件名
+        { line: assignedToLine, ch: lines[assignedToLine].length }
+      );
+      modal.open();
+    }
   }
 };
-var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
-  constructor(editor, settings, suggestionList, lineNum) {
+var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
+  constructor(editor, settings, suggestionList, insertLocation) {
     super(app);
     this.editor = editor;
     this.settings = settings;
     this.suggestionList = suggestionList;
-    this.lineNum = lineNum;
+    this.insertLocation = insertLocation;
+    this.setPlaceholder("Who are you assigning this to?");
   }
   getSuggestions(query) {
     return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
@@ -161,19 +185,10 @@ var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
     el.createEl("div", { text: item });
   }
   async onChooseSuggestion(item, evt) {
-    this.editor.replaceRange(
-      "status: " + item,
-      { line: this.lineNum, ch: 0 },
-      { line: this.lineNum, ch: this.editor.getLine(this.lineNum).length }
-    );
-    if (item == "archived") {
-      let path = this.app.workspace.getActiveFile().path;
-      let dir = path.split("/");
-      if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${(0, import_obsidian2.moment)().format("YYYY")}`)) {
-        await this.app.vault.createFolder(`${dir[0]}/_Archived/${(0, import_obsidian2.moment)().format("YYYY")}`);
-      }
-      this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path), `${dir[0]}/_Archived/${(0, import_obsidian2.moment)().format("YYYY")}/${dir[dir.length - 1]}`);
-    }
+    const oldContent = this.editor.getValue();
+    const newContent = oldContent.replace("assignedTo: ", `assignedTo:
+  - ${item}`);
+    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
   }
 };
 
@@ -203,20 +218,9 @@ function updateLastEditDate(editor, settings) {
     lineIndex++;
   }
 }
-async function openStatusSuggestionModal(app2, settings, lineNum) {
-  const files = app2.vault.getMarkdownFiles().filter((file) => file.path.startsWith("All/status"));
-  const statusFile = files[0];
-  const statusOptions = (await app2.vault.read(statusFile)).split("\n");
-  new StatusSuggestionModal(app2.workspace.activeEditor.editor, settings, statusOptions, lineNum).open();
-}
 function openTemplateSuggestionModal(app2, settings) {
   const files = app2.vault.getMarkdownFiles();
-  const templateFiles = [];
-  for (let index = 0; index < files.length; index++) {
-    if (files[index].path.startsWith(settings.templateFolderPath)) {
-      templateFiles.push(files[index]);
-    }
-  }
+  const templateFiles = files.filter((file) => file.path.startsWith(settings.templateFolderPath));
   new TemplateSuggestionModal(app2.workspace.activeEditor.editor, settings, templateFiles).open();
 }
 
@@ -308,14 +312,6 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         }, 500);
       }));
     }, 1e3);
-    this.registerDomEvent(document, "click", async (evt) => {
-      var _a, _b, _c;
-      const editor = (_c = (_b = (_a = this.app) == null ? void 0 : _a.workspace) == null ? void 0 : _b.activeEditor) == null ? void 0 : _c.editor;
-      if (editor == null ? void 0 : editor.getLine(editor.getCursor().line).contains("status:")) {
-        await openStatusSuggestionModal(this.app, this.settings, editor.getCursor().line);
-        editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
-      }
-    });
     this.registerEvent(
       this.app.workspace.on("editor-change", (editor) => {
         const file = this.app.workspace.getActiveFile();
