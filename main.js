@@ -2960,6 +2960,15 @@ var safeLoadAll = renamed("safeLoadAll", "loadAll");
 var safeDump = renamed("safeDump", "dump");
 
 // src/validate.ts
+function arrayEqual(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b))
+    return false;
+  if (a.length !== b.length)
+    return false;
+  const sa = [...a].sort().join(",");
+  const sb = [...b].sort().join(",");
+  return sa === sb;
+}
 async function validatePeople(app2, file) {
   var _a, _b;
   const cache = this.app.metadataCache.getFileCache(file);
@@ -2979,8 +2988,6 @@ async function validatePeople(app2, file) {
       assignedTo = [cache.frontmatter.assignedTo];
     }
   }
-  console.log("people:", people);
-  console.log("assignedTo:", assignedTo);
   const splitAndClean = (arr) => arr.flatMap((s) => s.split(/[^a-zA-Z]+/).filter(Boolean));
   const peopleClean = splitAndClean(people);
   const assignedToClean = splitAndClean(assignedTo);
@@ -2988,8 +2995,9 @@ async function validatePeople(app2, file) {
   const allPeople = Array.from(allPeopleSet);
   const allAssignedToSet = new Set(assignedToClean);
   const allAssignedTo = Array.from(allAssignedToSet);
-  console.log("allPeople:", allPeople);
-  console.log("allAssignedTo:", allAssignedTo);
+  if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
+    return;
+  }
   updateFrontmatterFields(app2, file, {
     people: allPeople,
     assignedTo: allAssignedTo

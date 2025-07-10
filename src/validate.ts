@@ -1,6 +1,14 @@
 import { App, TFile } from 'obsidian';
 import * as yaml from 'js-yaml';
 
+function arrayEqual(a: string[], b: string[]) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    const sa = [...a].sort().join(',');
+    const sb = [...b].sort().join(',');
+    return sa === sb;
+}
+
 export async function validatePeople(app: App, file: TFile) {
 
 	const cache = this.app.metadataCache.getFileCache(file);
@@ -23,8 +31,8 @@ export async function validatePeople(app: App, file: TFile) {
 		}
 	}
 
-	console.log('people:', people);
-	console.log('assignedTo:', assignedTo);
+	// console.log('people:', people);
+	// console.log('assignedTo:', assignedTo);
 
 	// 用正则分割每个元素，过滤空字符串
 	const splitAndClean = (arr: string[]) =>
@@ -40,8 +48,13 @@ export async function validatePeople(app: App, file: TFile) {
 	const allAssignedToSet = new Set(assignedToClean);
 	const allAssignedTo = Array.from(allAssignedToSet);
 
-	console.log('allPeople:', allPeople);
-	console.log('allAssignedTo:', allAssignedTo);
+	// console.log('allPeople:', allPeople);
+	// console.log('allAssignedTo:', allAssignedTo);
+
+	if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
+		// 如果没有变化，直接返回
+		return;
+	}
 
 	updateFrontmatterFields(app, file, {
 		people: allPeople,
