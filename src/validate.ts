@@ -43,16 +43,29 @@ export async function validatePeople(app: App, file: TFile) {
 	console.log('allPeople:', allPeople);
 	console.log('allAssignedTo:', allAssignedTo);
 
-	// 读取原文件内容
-	const content = await this.app.vault.read(file);
-	const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
-	if (!match) return;
+	updateFrontmatterFields(app, file, {
+		people: allPeople,
+		assignedTo: allAssignedTo
+	});
+}
 
-	let data: any = yaml.load(match[1]) || {};
-	data.people = allPeople;
-	data.assignedTo = allAssignedTo;
+/**
+ * 批量修改 frontmatter 字段
+ * @param app Obsidian App
+ * @param file 目标 TFile
+ * @param fields 要修改的字段对象，如 { people: ['a','b'], assignedTo: ['c'] }
+ */
+export async function updateFrontmatterFields(app: App, file: TFile, fields: Record<string, any>) {
+    const content = await app.vault.read(file);
+    const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
+    if (!match) return;
 
-	const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
-	const newContent = `---\n${newYaml}\n---\n${match[2]}`;
-	await app.vault.modify(file, newContent);
+    let data: any = yaml.load(match[1]) || {};
+    for (const key in fields) {
+        data[key] = fields[key];
+    }
+
+    const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
+    const newContent = `---\n${newYaml}\n---\n${match[2]}`;
+    await app.vault.modify(file, newContent);
 }

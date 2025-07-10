@@ -2990,13 +2990,20 @@ async function validatePeople(app2, file) {
   const allAssignedTo = Array.from(allAssignedToSet);
   console.log("allPeople:", allPeople);
   console.log("allAssignedTo:", allAssignedTo);
-  const content = await this.app.vault.read(file);
+  updateFrontmatterFields(app2, file, {
+    people: allPeople,
+    assignedTo: allAssignedTo
+  });
+}
+async function updateFrontmatterFields(app2, file, fields) {
+  const content = await app2.vault.read(file);
   const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
   if (!match)
     return;
   let data = load(match[1]) || {};
-  data.people = allPeople;
-  data.assignedTo = allAssignedTo;
+  for (const key in fields) {
+    data[key] = fields[key];
+  }
   const newYaml = dump(data, { lineWidth: 1e3 }).trim();
   const newContent = `---
 ${newYaml}
