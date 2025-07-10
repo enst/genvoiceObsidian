@@ -1,0 +1,58 @@
+import { App, TFile } from 'obsidian';
+import * as yaml from 'js-yaml';
+
+export async function validatePeople(app: App, file: TFile) {
+
+	const cache = this.app.metadataCache.getFileCache(file);
+	let people: string[] = [];
+	let assignedTo: string[] = [];
+
+	if (cache?.frontmatter?.people) {
+		if (Array.isArray(cache.frontmatter.people)) {
+			people = cache.frontmatter.people;
+		} else if (typeof cache.frontmatter.people === 'string') {
+			people = [cache.frontmatter.people];
+		}
+	}
+
+	if (cache?.frontmatter?.assignedTo) {
+		if (Array.isArray(cache.frontmatter.assignedTo)) {
+			assignedTo = cache.frontmatter.assignedTo;
+		} else if (typeof cache.frontmatter.assignedTo === 'string') {
+			assignedTo = [cache.frontmatter.assignedTo];
+		}
+	}
+
+	console.log('people:', people);
+	console.log('assignedTo:', assignedTo);
+
+	// 用正则分割每个元素，过滤空字符串
+	const splitAndClean = (arr: string[]) =>
+		arr.flatMap(s => s.split(/[^a-zA-Z]+/).filter(Boolean));
+
+	const peopleClean = splitAndClean(people);
+	const assignedToClean = splitAndClean(assignedTo);
+
+	// 用 Set 去重合并
+	const allPeopleSet = new Set([...peopleClean, ...assignedToClean]);
+	const allPeople = Array.from(allPeopleSet);
+
+	const allAssignedToSet = new Set(assignedToClean);
+	const allAssignedTo = Array.from(allAssignedToSet);
+
+	console.log('allPeople:', allPeople);
+	console.log('allAssignedTo:', allAssignedTo);
+
+	// 读取原文件内容
+	const content = await this.app.vault.read(file);
+	const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
+	if (!match) return;
+
+	let data: any = yaml.load(match[1]) || {};
+	data.people = allPeople;
+	data.assignedTo = allAssignedTo;
+
+	const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
+	const newContent = `---\n${newYaml}\n---\n${match[2]}`;
+	await app.vault.modify(file, newContent);
+}

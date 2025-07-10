@@ -35,7 +35,7 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 			.replace('people: ', `people:\n  - ${this.settings.username}`)
 			.replace('createdBy: ', `createdBy: ${this.settings.username}`);
 		await this.app.vault.modify(this.app.workspace.getActiveFile()!, newContent);
-		
+
 		return;
 		// 正确读取 peopleFolderPath 下的人名
 		const peopleFiles: TFile[] = this.app.vault.getMarkdownFiles().filter(
@@ -70,14 +70,13 @@ export class StatusSuggestionModal extends SuggestModal<string> {
 	private editor: Editor;
 	private settings: TextPluginSettings;
 	private suggestionList: string[]
-	private lineNum: number;
 
 	constructor(editor: Editor, settings: TextPluginSettings, suggestionList: string[], lineNum: number) {
 		super(app);
 		this.editor = editor;
 		this.settings = settings;
 		this.suggestionList = suggestionList;
-		this.lineNum = lineNum;
+		this.setPlaceholder("Status");
 	}
 
 	getSuggestions(query: string): string[] {
@@ -89,19 +88,17 @@ export class StatusSuggestionModal extends SuggestModal<string> {
 	}
 
 	async onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
-		this.editor.replaceRange(
-			'status: ' + item,
-			{ line: this.lineNum, ch: 0 },
-			{ line: this.lineNum, ch: this.editor.getLine(this.lineNum).length }
-		)
-		if (item == 'archived') {
-			let path = this.app.workspace.getActiveFile()!.path;
-			let dir: string[] = path.split('/');
-			if (!await this.app.vault.adapter.exists(`${dir[0]}/_Archived/${moment().format('YYYY')}`)) {
-				await this.app.vault.createFolder(`${dir[0]}/_Archived/${moment().format('YYYY')}`)
+		const oldContent = this.editor.getValue();
+		// const newContent = oldContent.replace('status: ', `status:  ${item}`);
+		const lines = oldContent.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			if (lines[i].trim().startsWith('status:')) {
+				lines[i] = `status:  ${item}`;
+				break;
 			}
-			this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${dir[dir.length - 1]}`);
 		}
+		const newContent = lines.join('\n');
+		await this.app.vault.modify(this.app.workspace.getActiveFile()!, newContent);
 	}
 }
 
