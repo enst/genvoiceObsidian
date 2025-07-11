@@ -2988,7 +2988,9 @@ async function validatePeople(app2, file) {
       assignedTo = [cache.frontmatter.assignedTo];
     }
   }
-  const splitAndClean = (arr) => arr.flatMap((s) => s.split(/[^a-zA-Z]+/).filter(Boolean));
+  const splitAndClean = (arr) => arr.flatMap(
+    (s) => s.split(/[^a-zA-Z]+/).filter(Boolean).map((str2) => str2.toLowerCase())
+  );
   const peopleClean = splitAndClean(people);
   const assignedToClean = splitAndClean(assignedTo);
   const allPeopleSet = /* @__PURE__ */ new Set([...peopleClean, ...assignedToClean]);
@@ -3064,11 +3066,12 @@ var TextPlugin = class extends import_obsidian5.Plugin {
           return;
         if (this.isUpdating)
           return;
+        if (file.path.startsWith(this.settings.templateFolderPath)) {
+          return;
+        }
         this.isUpdating = true;
         try {
-          if (!file.path.startsWith(this.settings.templateFolderPath)) {
-            updateLastEditDate(editor, this.settings);
-          }
+          updateLastEditDate(editor, this.settings);
           generateAutoText(this.app, editor, this.settings);
           validatePeople(this.app, file);
         } finally {
@@ -3078,9 +3081,6 @@ var TextPlugin = class extends import_obsidian5.Plugin {
     );
     this.registerEvent(
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
-        const file = this.app.workspace.getActiveFile();
-        if (!file)
-          return;
         menu.addSeparator();
         menu.addItem((item) => {
           item.setTitle("Set Task Status").onClick(() => {

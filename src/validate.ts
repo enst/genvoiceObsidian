@@ -2,11 +2,11 @@ import { App, TFile } from 'obsidian';
 import * as yaml from 'js-yaml';
 
 function arrayEqual(a: string[], b: string[]) {
-    if (!Array.isArray(a) || !Array.isArray(b)) return false;
-    if (a.length !== b.length) return false;
-    const sa = [...a].sort().join(',');
-    const sb = [...b].sort().join(',');
-    return sa === sb;
+	if (!Array.isArray(a) || !Array.isArray(b)) return false;
+	if (a.length !== b.length) return false;
+	const sa = [...a].sort().join(',');
+	const sb = [...b].sort().join(',');
+	return sa === sb;
 }
 
 export async function validatePeople(app: App, file: TFile) {
@@ -36,7 +36,11 @@ export async function validatePeople(app: App, file: TFile) {
 
 	// 用正则分割每个元素，过滤空字符串
 	const splitAndClean = (arr: string[]) =>
-		arr.flatMap(s => s.split(/[^a-zA-Z]+/).filter(Boolean));
+		arr.flatMap(s =>
+			s.split(/[^a-zA-Z]+/)
+				.filter(Boolean)
+				.map(str => str.toLowerCase())
+		);
 
 	const peopleClean = splitAndClean(people);
 	const assignedToClean = splitAndClean(assignedTo);
@@ -69,16 +73,16 @@ export async function validatePeople(app: App, file: TFile) {
  * @param fields 要修改的字段对象，如 { people: ['a','b'], assignedTo: ['c'] }
  */
 export async function updateFrontmatterFields(app: App, file: TFile, fields: Record<string, any>) {
-    const content = await app.vault.read(file);
-    const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
-    if (!match) return;
+	const content = await app.vault.read(file);
+	const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
+	if (!match) return;
 
-    let data: any = yaml.load(match[1]) || {};
-    for (const key in fields) {
-        data[key] = fields[key];
-    }
+	let data: any = yaml.load(match[1]) || {};
+	for (const key in fields) {
+		data[key] = fields[key];
+	}
 
-    const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
-    const newContent = `---\n${newYaml}\n---\n${match[2]}`;
-    await app.vault.modify(file, newContent);
+	const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
+	const newContent = `---\n${newYaml}\n---\n${match[2]}`;
+	await app.vault.modify(file, newContent);
 }

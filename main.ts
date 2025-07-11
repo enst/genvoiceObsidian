@@ -113,13 +113,14 @@ export default class TextPlugin extends Plugin {
 			this.app.workspace.on('editor-change', (editor: Editor) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!editor || !file) return;
-
 				if (this.isUpdating) return; // 防止递归
+				if (file.path.startsWith(this.settings.templateFolderPath)) {
+					// 如果是 template 文件夹下的文件，则不进行自动更新
+					return;
+				}
 				this.isUpdating = true;
 				try {
-					if (!file.path.startsWith(this.settings.templateFolderPath)) {
-						updateLastEditDate(editor, this.settings);
-					}
+					updateLastEditDate(editor, this.settings);
 					generateAutoText(this.app, editor, this.settings);
 					validatePeople(this.app, file);
 				} finally {
@@ -130,9 +131,6 @@ export default class TextPlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on("editor-menu", (menu: Menu, editor: Editor, view) => {
-				const file = this.app.workspace.getActiveFile();
-				if (!file) return;
-
 				menu.addSeparator();
 				// menu.addItem((item) => {
 				// 	item.setTitle("GenVoice")
