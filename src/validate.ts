@@ -10,7 +10,7 @@ function arrayEqual(a: string[], b: string[]) {
 }
 
 export async function validatePeople(app: App, file: TFile) {
-
+	// console.log('Validating people and assignedTo in frontmatter for file:', file.path);
 	const cache = this.app.metadataCache.getFileCache(file);
 	let people: string[] = [];
 	let assignedTo: string[] = [];

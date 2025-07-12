@@ -1,6 +1,7 @@
 import { SuggestModal, Editor, TFile, EditorPosition, Modal, ButtonComponent, moment, Notice } from 'obsidian';
-import { updateLastEditDate, initTemplatePpl, assignedToUpdate } from './assets';
+import { updateLastEditDate, initTemplatePpl } from './assets';
 import { TextPluginSettings } from './settings';
+import { validatePeople, updateFrontmatterFields } from './validate';
 
 // template 选择弹出窗口
 
@@ -127,50 +128,26 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 		el.createEl("div", { text: item });
 	}
 	async onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
-		/*this.editor.replaceRange(
-			item,
-			{line: this.insertLocation.line, ch: this.insertLocation.ch - 1},
-			{line: this.insertLocation.line, ch: this.insertLocation.ch}
-		)*/
-
-		const oldContent = this.editor.getValue();
-		const newContent = oldContent.replace('assignedTo: ', `assignedTo:\n  - ${item}`);
-		await this.app.vault.modify(this.app.workspace.getActiveFile()!, newContent);
-
-		/*const lineNum = this.insertLocation.line;
-		const lineText = this.editor.getLine(lineNum);
-		console.log('people lineText: ' + lineText);
-
+		// console.log('PeopleSuggestionModal onChooseSuggestion: ' + item)
 		const file = this.app.workspace.getActiveFile();
-		if (file) {
-			const content = await app.vault.read(file);
-			const lines = content.split('\n');
-			for (let i = 0; i < lines.length; i++) {
-				if (lines[i].startsWith('assignedTo:')) {
-					// lines[i] = `assignedTo:  ${item};`
-					lines.splice(i + 1, 0, `  - ${item}`);
-					break;
-				}
+		if (!file) {
+			return;
+		}
+		const cache = this.app.metadataCache.getFileCache(file);
+		let assignedTo: string[] = [];
+
+		if (cache?.frontmatter?.assignedTo) {
+			if (Array.isArray(cache.frontmatter.assignedTo)) {
+				assignedTo = cache.frontmatter.assignedTo;
+			} else if (typeof cache.frontmatter.assignedTo === 'string') {
+				assignedTo = [cache.frontmatter.assignedTo];
 			}
-			await app.vault.modify(file, lines.join('\n'));
-		}*/
-		// if (lineText.startsWith('assignedTo:')) {
-		// 	console.log(item);
-		// 	this.editor.replaceRange(
-		// 		`assignedTo: ${item}`,
-		// 		{ line: lineNum, ch: 0 },
-		// 		{ line: lineNum, ch: lineText.length }
-		// 	);
-		// }
-		// updateLastEditDate(this.editor, this.settings);
-		// setTimeout(() => {
-		// 	this.editor.setCursor({
-		// 		line: this.insertLocation.line,
-		// 		ch: this.insertLocation.ch + item.length - 1
-		// 	}, 100);
-		// })
-		// if (this.editor.getLine(this.insertLocation.line).startsWith('assignedTo: ')) {
-		// 	assignedToUpdate(this.editor, this.settings, item);
-		// }
+		}
+		assignedTo.push(item);
+
+		await updateFrontmatterFields(this.app, file, {
+			assignedTo: assignedTo
+		});
+		await validatePeople(this.app, file);
 	}
 }

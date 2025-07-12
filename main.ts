@@ -141,6 +141,12 @@ export default class TextPlugin extends Plugin {
 							openStatusSuggestionModal(this.app, this.settings, 0);
 						});
 				});
+				menu.addItem((item) => {
+					item.setTitle("Assign Task To")
+						.onClick(() => {
+							openPeopleSuggestionModal(this.app, this.settings);
+						});
+				});
 			})
 		);
 	}

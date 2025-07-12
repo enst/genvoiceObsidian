@@ -80,21 +80,3 @@ export function initTemplatePpl (app: App, editor: Editor, settings: TextPluginS
 		}
 	}
 }
-
-// 在 assignedTo：前插入人名时，自动更新 people：前的名单
-
-export function assignedToUpdate(editor: Editor, settings: TextPluginSettings, name: string) {
-	let lineIndex = 0;
-	while (editor.getLine(lineIndex)) {
-		let line = editor.getLine(lineIndex)
-		if (line.startsWith(settings.peopleStr) && !line.contains(name)) {
-			editor.replaceRange(
-				',' + name,
-				{ line: lineIndex, ch: editor.getLine(lineIndex).length }
-			)
-			break;
-		}
-		lineIndex ++;
-	}
-	
-}

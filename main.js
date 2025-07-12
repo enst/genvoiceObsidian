@@ -122,185 +122,6 @@ var import_obsidian3 = require("obsidian");
 
 // src/modals.ts
 var import_obsidian2 = require("obsidian");
-var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
-  constructor(editor, settings, suggestionList) {
-    super(app);
-    this.editor = editor;
-    this.settings = settings;
-    this.suggestionList = suggestionList;
-  }
-  getSuggestions(query) {
-    return this.suggestionList.filter((item) => item.path.toLowerCase().includes(query.toLowerCase()));
-  }
-  renderSuggestion(item, el) {
-    el.createEl("div", { text: item.path.substring(this.settings.templateFolderPath.length, item.path.length - 3) });
-  }
-  // 选择时触发
-  async onChooseSuggestion(item, evt) {
-    let content = await this.app.vault.read(item);
-    this.editor.replaceRange(content, { line: 0, ch: 0 });
-    let oldContent = this.editor.getValue();
-    let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
-  - ${this.settings.username}`).replace("createdBy: ", `createdBy: ${this.settings.username}`);
-    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
-    return;
-    const peopleFiles = this.app.vault.getMarkdownFiles().filter(
-      (file) => file.path.startsWith(this.settings.peopleFolderPath)
-    );
-    const people = peopleFiles.map((file) => file.basename);
-    const lines = this.editor.getValue().split("\n");
-    let assignedToLine = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].startsWith("assignedTo:")) {
-        assignedToLine = i;
-        break;
-      }
-    }
-    if (assignedToLine >= 0) {
-      const modal = new PeopleSuggestionModal(
-        this.editor,
-        this.settings,
-        people,
-        // 用 people 而不是模板文件名
-        { line: assignedToLine, ch: lines[assignedToLine].length }
-      );
-      modal.open();
-    }
-  }
-};
-var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
-  constructor(editor, settings, suggestionList, lineNum) {
-    super(app);
-    this.editor = editor;
-    this.settings = settings;
-    this.suggestionList = suggestionList;
-    this.setPlaceholder("Status");
-  }
-  getSuggestions(query) {
-    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
-  }
-  renderSuggestion(item, el) {
-    el.createEl("div", { text: item });
-  }
-  async onChooseSuggestion(item, evt) {
-    const oldContent = this.editor.getValue();
-    const lines = oldContent.split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim().startsWith("status:")) {
-        lines[i] = `status:  ${item}`;
-        break;
-      }
-    }
-    const newContent = lines.join("\n");
-    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
-  }
-};
-var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
-  constructor(editor, settings, suggestionList, insertLocation) {
-    super(app);
-    this.editor = editor;
-    this.settings = settings;
-    this.suggestionList = suggestionList;
-    this.insertLocation = insertLocation;
-    this.setPlaceholder("Who are you assigning this to?");
-  }
-  getSuggestions(query) {
-    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
-  }
-  renderSuggestion(item, el) {
-    el.createEl("div", { text: item });
-  }
-  async onChooseSuggestion(item, evt) {
-    const oldContent = this.editor.getValue();
-    const newContent = oldContent.replace("assignedTo: ", `assignedTo:
-  - ${item}`);
-    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
-  }
-};
-
-// src/assets.ts
-function updateLastEditDate(editor, settings) {
-  let lineIndex = 0;
-  while (editor.getLine(lineIndex)) {
-    let line = editor.getLine(lineIndex);
-    if (line.startsWith(settings.lastEditDateStr)) {
-      if (editor.getCursor().line != lineIndex) {
-        if (line.length > settings.lastEditDateStr.length + settings.dateFormat.length) {
-          editor.replaceRange(
-            (0, import_obsidian3.moment)().format(settings.dateFormat),
-            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-            { line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 }
-          );
-        } else {
-          editor.replaceRange(
-            (0, import_obsidian3.moment)().format(settings.dateFormat),
-            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-            { line: lineIndex, ch: line.length }
-          );
-        }
-      }
-      break;
-    }
-    lineIndex++;
-  }
-}
-async function openStatusSuggestionModal(app2, settings, lineNum) {
-  const files = app2.vault.getMarkdownFiles().filter((file) => file.path.startsWith("All/status"));
-  const statusFile = files[0];
-  const statusOptions = (await app2.vault.read(statusFile)).split("\n");
-  new StatusSuggestionModal(app2.workspace.activeEditor.editor, settings, statusOptions, lineNum).open();
-}
-function openTemplateSuggestionModal(app2, settings) {
-  const files = app2.vault.getMarkdownFiles();
-  const templateFiles = files.filter((file) => file.path.startsWith(settings.templateFolderPath));
-  new TemplateSuggestionModal(app2.workspace.activeEditor.editor, settings, templateFiles).open();
-}
-
-// src/autotext.ts
-var import_obsidian4 = require("obsidian");
-function disableAutoText(app2, editor, settings) {
-  var _a;
-  let dataviewLineTrack = 0;
-  let topLevelLineTrack = 0;
-  let isTemplate = false;
-  const metadata = (_a = app2.metadataCache.getFileCache(this.app.workspace.getActiveFile())) == null ? void 0 : _a.frontmatter;
-  if (metadata && metadata.hasOwnProperty("people")) {
-    isTemplate = true;
-  }
-  if (editor.getLine(editor.getCursor().line).length === 0) {
-    return true;
-  }
-  for (let index = 0; index < editor.getCursor().line; index++) {
-    const line = editor.getLine(index);
-    if (dataviewLineTrack >= 2 && topLevelLineTrack == 1) {
-      if (!(line == "")) {
-        return true;
-      }
-    }
-    if (line.startsWith(settings.topLevelLine)) {
-      topLevelLineTrack++;
-    }
-    if (line.startsWith(settings.dataviewHeaderLine)) {
-      dataviewLineTrack++;
-    }
-  }
-  if (dataviewLineTrack <= 1 || !isTemplate || topLevelLineTrack == 0) {
-    return true;
-  }
-  return false;
-}
-function generateAutoText(app2, editor, settings) {
-  if (!disableAutoText(app2, editor, settings)) {
-    editor.replaceRange(
-      "\n\n" + settings.separationLineStr + "\n" + (0, import_obsidian4.moment)().format(settings.dateFormat) + " " + settings.username,
-      { line: editor.getCursor().line - 1, ch: editor.getLine(editor.getCursor().line - 1).length }
-    );
-    editor.replaceRange(
-      "\n",
-      { line: editor.getCursor().line + 1, ch: 0 }
-    );
-  }
-}
 
 // node_modules/js-yaml/dist/js-yaml.mjs
 function isNothing(subject) {
@@ -2971,6 +2792,7 @@ function arrayEqual(a, b) {
 }
 async function validatePeople(app2, file) {
   var _a, _b;
+  console.log("Validating people and assignedTo in frontmatter for file:", file.path);
   const cache = this.app.metadataCache.getFileCache(file);
   let people = [];
   let assignedTo = [];
@@ -3020,6 +2842,216 @@ ${newYaml}
 ---
 ${match[2]}`;
   await app2.vault.modify(file, newContent);
+}
+
+// src/modals.ts
+var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
+  constructor(editor, settings, suggestionList) {
+    super(app);
+    this.editor = editor;
+    this.settings = settings;
+    this.suggestionList = suggestionList;
+  }
+  getSuggestions(query) {
+    return this.suggestionList.filter((item) => item.path.toLowerCase().includes(query.toLowerCase()));
+  }
+  renderSuggestion(item, el) {
+    el.createEl("div", { text: item.path.substring(this.settings.templateFolderPath.length, item.path.length - 3) });
+  }
+  // 选择时触发
+  async onChooseSuggestion(item, evt) {
+    let content = await this.app.vault.read(item);
+    this.editor.replaceRange(content, { line: 0, ch: 0 });
+    let oldContent = this.editor.getValue();
+    let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
+  - ${this.settings.username}`).replace("createdBy: ", `createdBy: ${this.settings.username}`);
+    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
+    return;
+    const peopleFiles = this.app.vault.getMarkdownFiles().filter(
+      (file) => file.path.startsWith(this.settings.peopleFolderPath)
+    );
+    const people = peopleFiles.map((file) => file.basename);
+    const lines = this.editor.getValue().split("\n");
+    let assignedToLine = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith("assignedTo:")) {
+        assignedToLine = i;
+        break;
+      }
+    }
+    if (assignedToLine >= 0) {
+      const modal = new PeopleSuggestionModal(
+        this.editor,
+        this.settings,
+        people,
+        // 用 people 而不是模板文件名
+        { line: assignedToLine, ch: lines[assignedToLine].length }
+      );
+      modal.open();
+    }
+  }
+};
+var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
+  constructor(editor, settings, suggestionList, lineNum) {
+    super(app);
+    this.editor = editor;
+    this.settings = settings;
+    this.suggestionList = suggestionList;
+    this.setPlaceholder("Status");
+  }
+  getSuggestions(query) {
+    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
+  }
+  renderSuggestion(item, el) {
+    el.createEl("div", { text: item });
+  }
+  async onChooseSuggestion(item, evt) {
+    const oldContent = this.editor.getValue();
+    const lines = oldContent.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith("status:")) {
+        lines[i] = `status:  ${item}`;
+        break;
+      }
+    }
+    const newContent = lines.join("\n");
+    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
+  }
+};
+var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
+  constructor(editor, settings, suggestionList, insertLocation) {
+    super(app);
+    this.editor = editor;
+    this.settings = settings;
+    this.suggestionList = suggestionList;
+    this.insertLocation = insertLocation;
+    this.setPlaceholder("Who are you assigning this to?");
+  }
+  getSuggestions(query) {
+    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
+  }
+  renderSuggestion(item, el) {
+    el.createEl("div", { text: item });
+  }
+  async onChooseSuggestion(item, evt) {
+    var _a;
+    console.log("PeopleSuggestionModal onChooseSuggestion: " + item);
+    const file = this.app.workspace.getActiveFile();
+    if (!file) {
+      return;
+    }
+    const cache = this.app.metadataCache.getFileCache(file);
+    let assignedTo = [];
+    if ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.assignedTo) {
+      if (Array.isArray(cache.frontmatter.assignedTo)) {
+        assignedTo = cache.frontmatter.assignedTo;
+      } else if (typeof cache.frontmatter.assignedTo === "string") {
+        assignedTo = [cache.frontmatter.assignedTo];
+      }
+    }
+    assignedTo.push(item);
+    await updateFrontmatterFields(this.app, file, {
+      assignedTo
+    });
+    await validatePeople(this.app, file);
+  }
+};
+
+// src/assets.ts
+function updateLastEditDate(editor, settings) {
+  let lineIndex = 0;
+  while (editor.getLine(lineIndex)) {
+    let line = editor.getLine(lineIndex);
+    if (line.startsWith(settings.lastEditDateStr)) {
+      if (editor.getCursor().line != lineIndex) {
+        if (line.length > settings.lastEditDateStr.length + settings.dateFormat.length) {
+          editor.replaceRange(
+            (0, import_obsidian3.moment)().format(settings.dateFormat),
+            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
+            { line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 }
+          );
+        } else {
+          editor.replaceRange(
+            (0, import_obsidian3.moment)().format(settings.dateFormat),
+            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
+            { line: lineIndex, ch: line.length }
+          );
+        }
+      }
+      break;
+    }
+    lineIndex++;
+  }
+}
+async function openPeopleSuggestionModal(app2, settings) {
+  let editor = app2.workspace.activeEditor.editor;
+  let location = editor.getCursor();
+  const files = app2.vault.getMarkdownFiles();
+  const people = [];
+  for (let index = 0; index < files.length; index++) {
+    if (files[index].path.startsWith(settings.peopleFolderPath)) {
+      people.push(files[index].basename);
+    }
+  }
+  editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
+  new PeopleSuggestionModal(app2.workspace.activeEditor.editor, settings, people, location).open();
+}
+async function openStatusSuggestionModal(app2, settings, lineNum) {
+  const files = app2.vault.getMarkdownFiles().filter((file) => file.path.startsWith("All/status"));
+  const statusFile = files[0];
+  const statusOptions = (await app2.vault.read(statusFile)).split("\n");
+  new StatusSuggestionModal(app2.workspace.activeEditor.editor, settings, statusOptions, lineNum).open();
+}
+function openTemplateSuggestionModal(app2, settings) {
+  const files = app2.vault.getMarkdownFiles();
+  const templateFiles = files.filter((file) => file.path.startsWith(settings.templateFolderPath));
+  new TemplateSuggestionModal(app2.workspace.activeEditor.editor, settings, templateFiles).open();
+}
+
+// src/autotext.ts
+var import_obsidian4 = require("obsidian");
+function disableAutoText(app2, editor, settings) {
+  var _a;
+  let dataviewLineTrack = 0;
+  let topLevelLineTrack = 0;
+  let isTemplate = false;
+  const metadata = (_a = app2.metadataCache.getFileCache(this.app.workspace.getActiveFile())) == null ? void 0 : _a.frontmatter;
+  if (metadata && metadata.hasOwnProperty("people")) {
+    isTemplate = true;
+  }
+  if (editor.getLine(editor.getCursor().line).length === 0) {
+    return true;
+  }
+  for (let index = 0; index < editor.getCursor().line; index++) {
+    const line = editor.getLine(index);
+    if (dataviewLineTrack >= 2 && topLevelLineTrack == 1) {
+      if (!(line == "")) {
+        return true;
+      }
+    }
+    if (line.startsWith(settings.topLevelLine)) {
+      topLevelLineTrack++;
+    }
+    if (line.startsWith(settings.dataviewHeaderLine)) {
+      dataviewLineTrack++;
+    }
+  }
+  if (dataviewLineTrack <= 1 || !isTemplate || topLevelLineTrack == 0) {
+    return true;
+  }
+  return false;
+}
+function generateAutoText(app2, editor, settings) {
+  if (!disableAutoText(app2, editor, settings)) {
+    editor.replaceRange(
+      "\n\n" + settings.separationLineStr + "\n" + (0, import_obsidian4.moment)().format(settings.dateFormat) + " " + settings.username,
+      { line: editor.getCursor().line - 1, ch: editor.getLine(editor.getCursor().line - 1).length }
+    );
+    editor.replaceRange(
+      "\n",
+      { line: editor.getCursor().line + 1, ch: 0 }
+    );
+  }
 }
 
 // main.ts
@@ -3085,6 +3117,11 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         menu.addItem((item) => {
           item.setTitle("Set Task Status").onClick(() => {
             openStatusSuggestionModal(this.app, this.settings, 0);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle("Assign Task To").onClick(() => {
+            openPeopleSuggestionModal(this.app, this.settings);
           });
         });
       })
