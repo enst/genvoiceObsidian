@@ -1,4 +1,4 @@
-import { App, TFile } from 'obsidian';
+import { App, CachedMetadata, TFile } from 'obsidian';
 import * as yaml from 'js-yaml';
 
 function arrayEqual(a: string[], b: string[]) {
@@ -9,11 +9,16 @@ function arrayEqual(a: string[], b: string[]) {
 	return sa === sb;
 }
 
-export async function validatePeople(app: App, file: TFile) {
+export async function validatePeople(file: TFile) {
 	// console.log('Validating people and assignedTo in frontmatter for file:', file.path);
 	const cache = this.app.metadataCache.getFileCache(file);
 	let people: string[] = [];
 	let assignedTo: string[] = [];
+
+	const metadata = app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
+	if (!metadata || !metadata.hasOwnProperty('people') || !metadata.hasOwnProperty('assignedTo')) {
+		return;
+	}
 
 	if (cache?.frontmatter?.people) {
 		if (Array.isArray(cache.frontmatter.people)) {
@@ -57,10 +62,11 @@ export async function validatePeople(app: App, file: TFile) {
 
 	if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
 		// 如果没有变化，直接返回
+		// console.log('No changes in people or assignedTo fields, skipping update.');
 		return;
 	}
 
-	updateFrontmatterFields(app, file, {
+	await updateFrontmatterFields(app, file, {
 		people: allPeople,
 		assignedTo: allAssignedTo
 	});
@@ -73,6 +79,7 @@ export async function validatePeople(app: App, file: TFile) {
  * @param fields 要修改的字段对象，如 { people: ['a','b'], assignedTo: ['c'] }
  */
 export async function updateFrontmatterFields(app: App, file: TFile, fields: Record<string, any>) {
+	console.log('Updating frontmatter fields for file:', file.path);
 	const content = await app.vault.read(file);
 	const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
 	if (!match) return;
@@ -85,4 +92,8 @@ export async function updateFrontmatterFields(app: App, file: TFile, fields: Rec
 	const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
 	const newContent = `---\n${newYaml}\n---\n${match[2]}`;
 	await app.vault.modify(file, newContent);
+	// const leaf = app.workspace.activeLeaf;
+	// if (leaf) {
+	// 	await leaf.openFile(file);
+	// }
 }

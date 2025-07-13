@@ -51,7 +51,7 @@ export default class TextPlugin extends Plugin {
 		// 归档到当年文件夹
 
 		this.registerEvent(this.app.metadataCache.on("changed", async (file, data, cache) => { // metadataCache有改动时触发
-			// let path = this.app.workspace.getActiveFile()!.path;
+			// console.log('metadataCache changed:', file.path, cache);
 			let path = file.path
 			let archivedFolderName = '_Archived'
 			let dir: string[] = path.split('/');
@@ -67,8 +67,12 @@ export default class TextPlugin extends Plugin {
 				// const fileName = dir[dir.length - 1].split('.')[0] + '[' + moment().format('YYYYMMDD hhmm') + '].' + dir[dir.length - 1].split('.')[1]
 				// this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${fileName}`);
 				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${archivedFolderPath}/${dir[dir.length - 1]}`);
+			}else {
+				// setTimeout(async () => {
+				// 	// console.log('metadataCache changed:', file.path, cache);
+				// 	await validatePeople(file); // 验证 people 和 assignedTo 字段
+				// }, 600);
 			}
-
 		}));
 
 		// 功能：更改或粘贴时，插入更改 header （只在 type：task 文档生效）
@@ -110,7 +114,7 @@ export default class TextPlugin extends Plugin {
 		});*/
 
 		this.registerEvent(
-			this.app.workspace.on('editor-change', (editor: Editor) => {
+			this.app.workspace.on('editor-change', async (editor: Editor) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!editor || !file) return;
 				if (this.isUpdating) return; // 防止递归
@@ -122,7 +126,8 @@ export default class TextPlugin extends Plugin {
 				try {
 					updateLastEditDate(editor, this.settings);
 					generateAutoText(this.app, editor, this.settings);
-					validatePeople(this.app, file);
+					// const cache = this.app.metadataCache.getFileCache(file);
+					await validatePeople(file);
 				} finally {
 					this.isUpdating = false;
 				}

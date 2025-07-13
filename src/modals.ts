@@ -148,6 +148,6 @@ export class PeopleSuggestionModal extends SuggestModal<string> {
 		await updateFrontmatterFields(this.app, file, {
 			assignedTo: assignedTo
 		});
-		await validatePeople(this.app, file);
+		await validatePeople(file);
 	}
 }

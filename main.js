@@ -2790,20 +2790,23 @@ function arrayEqual(a, b) {
   const sb = [...b].sort().join(",");
   return sa === sb;
 }
-async function validatePeople(app2, file) {
-  var _a, _b;
-  console.log("Validating people and assignedTo in frontmatter for file:", file.path);
+async function validatePeople(file) {
+  var _a, _b, _c;
   const cache = this.app.metadataCache.getFileCache(file);
   let people = [];
   let assignedTo = [];
-  if ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.people) {
+  const metadata = (_a = app.metadataCache.getFileCache(this.app.workspace.getActiveFile())) == null ? void 0 : _a.frontmatter;
+  if (!metadata || !metadata.hasOwnProperty("people") || !metadata.hasOwnProperty("assignedTo")) {
+    return;
+  }
+  if ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b.people) {
     if (Array.isArray(cache.frontmatter.people)) {
       people = cache.frontmatter.people;
     } else if (typeof cache.frontmatter.people === "string") {
       people = [cache.frontmatter.people];
     }
   }
-  if ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b.assignedTo) {
+  if ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c.assignedTo) {
     if (Array.isArray(cache.frontmatter.assignedTo)) {
       assignedTo = cache.frontmatter.assignedTo;
     } else if (typeof cache.frontmatter.assignedTo === "string") {
@@ -2822,12 +2825,13 @@ async function validatePeople(app2, file) {
   if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
     return;
   }
-  updateFrontmatterFields(app2, file, {
+  await updateFrontmatterFields(app, file, {
     people: allPeople,
     assignedTo: allAssignedTo
   });
 }
 async function updateFrontmatterFields(app2, file, fields) {
+  console.log("Updating frontmatter fields for file:", file.path);
   const content = await app2.vault.read(file);
   const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
   if (!match)
@@ -2935,7 +2939,6 @@ var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
   }
   async onChooseSuggestion(item, evt) {
     var _a;
-    console.log("PeopleSuggestionModal onChooseSuggestion: " + item);
     const file = this.app.workspace.getActiveFile();
     if (!file) {
       return;
@@ -2953,7 +2956,7 @@ var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
     await updateFrontmatterFields(this.app, file, {
       assignedTo
     });
-    await validatePeople(this.app, file);
+    await validatePeople(file);
   }
 };
 
@@ -3079,6 +3082,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
           await this.app.vault.createFolder(archivedFolderPath);
         }
         this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path), `${archivedFolderPath}/${dir[dir.length - 1]}`);
+      } else {
       }
     }));
     setTimeout(() => {
@@ -3092,7 +3096,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
       }));
     }, 1e3);
     this.registerEvent(
-      this.app.workspace.on("editor-change", (editor) => {
+      this.app.workspace.on("editor-change", async (editor) => {
         const file = this.app.workspace.getActiveFile();
         if (!editor || !file)
           return;
@@ -3105,7 +3109,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         try {
           updateLastEditDate(editor, this.settings);
           generateAutoText(this.app, editor, this.settings);
-          validatePeople(this.app, file);
+          await validatePeople(file);
         } finally {
           this.isUpdating = false;
         }
