@@ -3088,6 +3088,9 @@ var TextPlugin = class extends import_obsidian5.Plugin {
     setTimeout(() => {
       this.registerEvent(this.app.vault.on("create", (file) => {
         setTimeout(async () => {
+          const activeFile = this.app.workspace.getActiveFile();
+          if ((activeFile == null ? void 0 : activeFile.path) !== file.path)
+            return;
           let content = await this.app.vault.read(file);
           if (file.path.endsWith(".md") && content == "") {
             openTemplateSuggestionModal(this.app, this.settings);

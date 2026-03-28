@@ -94,6 +94,8 @@ export default class TextPlugin extends Plugin {
 		setTimeout(() => {
 			this.registerEvent(this.app.vault.on('create', (file: TFile) => { // 创建文档时触发
 				setTimeout(async () => {
+					const activeFile = this.app.workspace.getActiveFile();
+					if (activeFile?.path !== file.path) return; // 只有当前激活文件才触发
 					let content = await this.app.vault.read(file); // 提取文档内容
 					if (file.path.endsWith('.md') && content == "") { // 确认创建的是 md 文档，并且为空文档
 						openTemplateSuggestionModal(this.app, this.settings); // 弹出 template 选择窗口
