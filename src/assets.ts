@@ -10,19 +10,13 @@ export function updateLastEditDate(editor: Editor, settings: TextPluginSettings)
 		let line = editor.getLine(lineIndex);
 		if (line.startsWith(settings.lastEditDateStr)) {
 			if (editor.getCursor().line != lineIndex) {
-				if (line.length > settings.lastEditDateStr.length + settings.dateFormat.length) {
-					editor.replaceRange(
-						moment().format(settings.dateFormat),
-						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-						{ line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 }
-					)
-				} else {
-					editor.replaceRange(
-						moment().format(settings.dateFormat),
-						{ line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-						{ line: lineIndex, ch: line.length }
-					)
-				}
+				// 无论旧值格式如何，整行替换为标准格式，避免长度不一致导致截断或残留
+				const newLine = `${settings.lastEditDateStr} ${moment().format(settings.dateFormat)}`;
+				editor.replaceRange(
+					newLine,
+					{ line: lineIndex, ch: 0 },
+					{ line: lineIndex, ch: line.length }
+				)
 			}
 			break;
 		}
