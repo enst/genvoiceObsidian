@@ -2913,33 +2913,6 @@ var TemplateSuggestionModal = class extends import_obsidian3.SuggestModal {
     }
   }
 };
-var StatusSuggestionModal = class extends import_obsidian3.SuggestModal {
-  constructor(editor, settings, suggestionList, lineNum) {
-    super(app);
-    this.editor = editor;
-    this.settings = settings;
-    this.suggestionList = suggestionList;
-    this.setPlaceholder("Status");
-  }
-  getSuggestions(query) {
-    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
-  }
-  renderSuggestion(item, el) {
-    el.createEl("div", { text: item });
-  }
-  async onChooseSuggestion(item, evt) {
-    const oldContent = this.editor.getValue();
-    const lines = oldContent.split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim().startsWith("status:")) {
-        lines[i] = `status:  ${item}`;
-        break;
-      }
-    }
-    const newContent = lines.join("\n");
-    await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
-  }
-};
 var PeopleSuggestionModal = class extends import_obsidian3.SuggestModal {
   constructor(editor, settings, suggestionList, insertLocation) {
     super(app);
@@ -3010,12 +2983,6 @@ async function openPeopleSuggestionModal(app2, settings) {
   editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 });
   new PeopleSuggestionModal(app2.workspace.activeEditor.editor, settings, people, location).open();
 }
-async function openStatusSuggestionModal(app2, settings, lineNum) {
-  const files = app2.vault.getMarkdownFiles().filter((file) => file.path.startsWith("All/status"));
-  const statusFile = files[0];
-  const statusOptions = (await app2.vault.read(statusFile)).split("\n");
-  new StatusSuggestionModal(app2.workspace.activeEditor.editor, settings, statusOptions, lineNum).open();
-}
 function openTemplateSuggestionModal(app2, settings) {
   const files = app2.vault.getMarkdownFiles();
   const templateFiles = files.filter((file) => file.path.startsWith(settings.templateFolderPath));
@@ -3076,6 +3043,51 @@ var TextPlugin = class extends import_obsidian6.Plugin {
     // 防止递归
     this.lastActiveFile = null;
     this.isValidatingPeople = false;
+    this.statusOptions = [];
+  }
+  async loadStatusOptions() {
+    const statusFile = this.app.vault.getAbstractFileByPath("All/status.md");
+    if (!(statusFile instanceof import_obsidian6.TFile)) {
+      this.statusOptions = [];
+      return;
+    }
+    const statusOptions = (await this.app.vault.read(statusFile)).split("\n").map((s) => s.trim()).map((s) => s.replace(/^[-*]\s+/, "").trim()).filter((s) => s.length > 0 && !s.startsWith("#") && !s.endsWith(":"));
+    this.statusOptions = Array.from(new Set(statusOptions)).sort();
+  }
+  async setStatusInActiveFile(status) {
+    const file = this.app.workspace.getActiveFile();
+    if (!file)
+      return;
+    const oldContent = await this.app.vault.read(file);
+    const lines = oldContent.split("\n");
+    let found = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim().startsWith("status:")) {
+        lines[i] = `status:  ${status}`;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      new import_obsidian6.Notice("No status field found in current file");
+      return;
+    }
+    await this.app.vault.modify(file, lines.join("\n"));
+  }
+  fillStatusSubmenu(submenu) {
+    if (this.statusOptions.length === 0) {
+      submenu.addItem((subItem) => {
+        subItem.setTitle("No status options loaded");
+      });
+      return;
+    }
+    for (const status of this.statusOptions) {
+      submenu.addItem((subItem) => {
+        subItem.setTitle(status).onClick(async () => {
+          await this.setStatusInActiveFile(status);
+        });
+      });
+    }
   }
   async runValidatePeople(file) {
     if (this.isValidatingPeople)
@@ -3090,8 +3102,19 @@ var TextPlugin = class extends import_obsidian6.Plugin {
   // obsidian 启动时激活
   async onload() {
     await this.loadSettings();
+    await this.loadStatusOptions();
     this.addSettingTab(new TextPluginSettingTab(this.app, this));
     this.lastActiveFile = this.app.workspace.getActiveFile();
+    this.app.workspace.onLayoutReady(() => {
+      void this.loadStatusOptions();
+    });
+    this.registerEvent(this.app.vault.on("modify", async (file) => {
+      if (!(file instanceof import_obsidian6.TFile))
+        return;
+      if (file.path !== "All/status.md")
+        return;
+      await this.loadStatusOptions();
+    }));
     this.registerEvent(this.app.metadataCache.on("changed", async (file, data, cache) => {
       var _a;
       let path = file.path;
@@ -3105,7 +3128,31 @@ var TextPlugin = class extends import_obsidian6.Plugin {
         if (!await this.app.vault.adapter.exists(archivedFolderPath)) {
           await this.app.vault.createFolder(archivedFolderPath);
         }
-        this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path), `${archivedFolderPath}/${dir[dir.length - 1]}`);
+        const stepOnePath = `${archivedFolderPath}/${dir[dir.length - 1]}`;
+        const source = this.app.vault.getAbstractFileByPath(path);
+        if (!(source instanceof import_obsidian6.TFile)) {
+          new import_obsidian6.Notice(`Archive failed: file not found (${path})`);
+          return;
+        }
+        try {
+          await this.app.fileManager.renameFile(source, stepOnePath);
+        } catch (error) {
+          console.error("Archive step 1 failed:", path, error);
+          new import_obsidian6.Notice(`Archive failed: ${dir[dir.length - 1]}`);
+          return;
+        }
+        const archiveSuffix = `_${(0, import_obsidian6.moment)().format("YYYYMMDDHHmm")}`;
+        const extWithDot = `.${source.extension}`;
+        const maxArchivedFileNameLength = 180;
+        const maxBaseLength = Math.max(1, maxArchivedFileNameLength - archiveSuffix.length - extWithDot.length);
+        const truncatedBase = source.basename.slice(0, maxBaseLength);
+        const stepTwoPath = `${archivedFolderPath}/${truncatedBase}${archiveSuffix}${extWithDot}`;
+        try {
+          await this.app.fileManager.renameFile(source, stepTwoPath);
+        } catch (error) {
+          console.error("Archive step 2 failed:", stepOnePath, error);
+          new import_obsidian6.Notice(`Archive suffix failed: ${source.name}`);
+        }
       } else {
       }
     }));
@@ -3167,9 +3214,37 @@ var TextPlugin = class extends import_obsidian6.Plugin {
       this.app.workspace.on("editor-menu", (menu, editor, view) => {
         menu.addSeparator();
         menu.addItem((item) => {
-          item.setTitle("Set Task Status").onClick(() => {
-            openStatusSuggestionModal(this.app, this.settings, 0);
-          });
+          item.setTitle("Set Task Status");
+          const itemWithSubmenu = item;
+          if (!itemWithSubmenu.setSubmenu)
+            return;
+          let populated = false;
+          try {
+            const submenu = itemWithSubmenu.setSubmenu();
+            if (submenu instanceof import_obsidian6.Menu) {
+              this.fillStatusSubmenu(submenu);
+              populated = true;
+            }
+          } catch (_) {
+          }
+          if (!populated) {
+            try {
+              itemWithSubmenu.setSubmenu((submenu) => {
+                this.fillStatusSubmenu(submenu);
+              });
+              populated = true;
+            } catch (_) {
+            }
+          }
+          if (!populated && this.statusOptions.length > 0) {
+            for (const status of this.statusOptions) {
+              menu.addItem((flatItem) => {
+                flatItem.setTitle(`Set Task Status: ${status}`).onClick(async () => {
+                  await this.setStatusInActiveFile(status);
+                });
+              });
+            }
+          }
         });
         menu.addItem((item) => {
           item.setTitle("Assign Task To").onClick(() => {

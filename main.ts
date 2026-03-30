@@ -1,6 +1,6 @@
 import { App, Editor, Notice, Plugin, moment, TFile, Command, Menu, MarkdownView } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { updateLastEditDate, openPeopleSuggestionModal, openTemplateSuggestionModal, openStatusSuggestionModal } from './src/assets'
+import { updateLastEditDate, openPeopleSuggestionModal, openTemplateSuggestionModal } from './src/assets'
 import { generateAutoText } from './src/autotext'
 import { validatePeople, validatePeopleInFolder } from 'src/validate';
 
@@ -9,6 +9,63 @@ export default class TextPlugin extends Plugin {
 	private isUpdating: boolean = false; // 防止递归
 	private lastActiveFile: TFile | null = null;
 	private isValidatingPeople = false;
+	private statusOptions: string[] = [];
+
+	private async loadStatusOptions() {
+		const statusFile = this.app.vault.getAbstractFileByPath('All/status.md');
+		if (!(statusFile instanceof TFile)) {
+			this.statusOptions = [];
+			return;
+		}
+
+		const statusOptions = (await this.app.vault.read(statusFile))
+			.split('\n')
+			.map((s) => s.trim())
+			.map((s) => s.replace(/^[-*]\s+/, '').trim())
+			.filter((s) => s.length > 0 && !s.startsWith('#') && !s.endsWith(':'));
+
+		this.statusOptions = Array.from(new Set(statusOptions)).sort();
+	}
+
+	private async setStatusInActiveFile(status: string) {
+		const file = this.app.workspace.getActiveFile();
+		if (!file) return;
+
+		const oldContent = await this.app.vault.read(file);
+		const lines = oldContent.split('\n');
+		let found = false;
+		for (let i = 0; i < lines.length; i++) {
+			if (lines[i].trim().startsWith('status:')) {
+				lines[i] = `status:  ${status}`;
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			new Notice('No status field found in current file');
+			return;
+		}
+
+		await this.app.vault.modify(file, lines.join('\n'));
+	}
+
+	private fillStatusSubmenu(submenu: Menu) {
+		if (this.statusOptions.length === 0) {
+			submenu.addItem((subItem) => {
+				subItem.setTitle('No status options loaded');
+			});
+			return;
+		}
+		for (const status of this.statusOptions) {
+			submenu.addItem((subItem) => {
+				subItem.setTitle(status)
+					.onClick(async () => {
+						await this.setStatusInActiveFile(status);
+					});
+			});
+		}
+	}
 
 	private async runValidatePeople(file: TFile) {
 		if (this.isValidatingPeople) return;
@@ -27,8 +84,18 @@ export default class TextPlugin extends Plugin {
 		// 加载 settings
 
 		await this.loadSettings();
+		await this.loadStatusOptions();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
 		this.lastActiveFile = this.app.workspace.getActiveFile();
+		this.app.workspace.onLayoutReady(() => {
+			void this.loadStatusOptions();
+		});
+
+		this.registerEvent(this.app.vault.on('modify', async (file) => {
+			if (!(file instanceof TFile)) return;
+			if (file.path !== 'All/status.md') return;
+			await this.loadStatusOptions();
+		}));
 
 		/*
 				// 功能：文档被更改时，自动更新最近更改日期
@@ -77,9 +144,36 @@ export default class TextPlugin extends Plugin {
 				if (!await this.app.vault.adapter.exists(archivedFolderPath)) {
 					await this.app.vault.createFolder(archivedFolderPath)
 				}
-				// const fileName = dir[dir.length - 1].split('.')[0] + '[' + moment().format('YYYYMMDD hhmm') + '].' + dir[dir.length - 1].split('.')[1]
-				// this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${dir[0]}/_Archived/${moment().format('YYYY')}/${fileName}`);
-				this.app.fileManager.renameFile(this.app.vault.getAbstractFileByPath(path)!, `${archivedFolderPath}/${dir[dir.length - 1]}`);
+
+				// 第一步：原名移动到 _Archived
+				const stepOnePath = `${archivedFolderPath}/${dir[dir.length - 1]}`;
+				const source = this.app.vault.getAbstractFileByPath(path);
+				if (!(source instanceof TFile)) {
+					new Notice(`Archive failed: file not found (${path})`);
+					return;
+				}
+
+				try {
+					await this.app.fileManager.renameFile(source, stepOnePath);
+				} catch (error) {
+					console.error('Archive step 1 failed:', path, error);
+					new Notice(`Archive failed: ${dir[dir.length - 1]}`);
+					return;
+				}
+
+				// 第二步：在 _Archived 内加后缀，并限制最终文件名长度
+				const archiveSuffix = `_${moment().format('YYYYMMDDHHmm')}`;
+				const extWithDot = `.${source.extension}`;
+				const maxArchivedFileNameLength = 180;
+				const maxBaseLength = Math.max(1, maxArchivedFileNameLength - archiveSuffix.length - extWithDot.length);
+				const truncatedBase = source.basename.slice(0, maxBaseLength);
+				const stepTwoPath = `${archivedFolderPath}/${truncatedBase}${archiveSuffix}${extWithDot}`;
+				try {
+					await this.app.fileManager.renameFile(source, stepTwoPath);
+				} catch (error) {
+					console.error('Archive step 2 failed:', stepOnePath, error);
+					new Notice(`Archive suffix failed: ${source.name}`);
+				}
 			}else {
 				// setTimeout(async () => {
 				// 	// console.log('metadataCache changed:', file.path, cache);
@@ -175,10 +269,44 @@ export default class TextPlugin extends Plugin {
 				// 	item.setTitle("GenVoice")
 				// });
 				menu.addItem((item) => {
-					item.setTitle("Set Task Status")
-						.onClick(() => {
-							openStatusSuggestionModal(this.app, this.settings, 0);
-						});
+					item.setTitle("Set Task Status");
+					const itemWithSubmenu = item as unknown as {
+						setSubmenu?: ((submenu: Menu) => unknown) & ((cb: (submenu: Menu) => void) => unknown) & (() => Menu | unknown);
+					};
+					if (!itemWithSubmenu.setSubmenu) return;
+
+					let populated = false;
+					try {
+						const submenu = (itemWithSubmenu.setSubmenu as () => unknown)();
+						if (submenu instanceof Menu) {
+							this.fillStatusSubmenu(submenu);
+							populated = true;
+						}
+					} catch (_) {
+						// ignore and try callback signature below
+					}
+
+					if (!populated) {
+						try {
+							(itemWithSubmenu.setSubmenu as (cb: (submenu: Menu) => void) => unknown)((submenu: Menu) => {
+								this.fillStatusSubmenu(submenu);
+							});
+							populated = true;
+						} catch (_) {
+							// submenu API unavailable in this runtime
+						}
+					}
+
+					if (!populated && this.statusOptions.length > 0) {
+						for (const status of this.statusOptions) {
+							menu.addItem((flatItem) => {
+								flatItem.setTitle(`Set Task Status: ${status}`)
+									.onClick(async () => {
+										await this.setStatusInActiveFile(status);
+									});
+							});
+						}
+					}
 				});
 				menu.addItem((item) => {
 					item.setTitle("Assign Task To")
