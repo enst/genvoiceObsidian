@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => TextPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
@@ -118,9 +118,12 @@ var TextPluginSettingTab = class extends import_obsidian.PluginSettingTab {
 };
 
 // src/assets.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/modals.ts
+var import_obsidian3 = require("obsidian");
+
+// src/validate.ts
 var import_obsidian2 = require("obsidian");
 
 // node_modules/js-yaml/dist/js-yaml.mjs
@@ -2847,9 +2850,24 @@ ${newYaml}
 ${match[2]}`;
   await app2.vault.modify(file, newContent);
 }
+async function validatePeopleInFolder(app2, settings, folderPath, validateFn) {
+  const files = app2.vault.getFiles();
+  const mdFiles = files.filter(
+    (file) => file.path.startsWith(folderPath) && file.extension === "md" && !file.path.startsWith(settings.templateFolderPath)
+  );
+  if (mdFiles.length === 0) {
+    new import_obsidian2.Notice("No markdown files found in this folder");
+    return;
+  }
+  new import_obsidian2.Notice(`Validating ${mdFiles.length} files...`);
+  for (const file of mdFiles) {
+    await validateFn.call({ app: app2 }, file);
+  }
+  new import_obsidian2.Notice(`Validated ${mdFiles.length} files`);
+}
 
 // src/modals.ts
-var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
+var TemplateSuggestionModal = class extends import_obsidian3.SuggestModal {
   constructor(editor, settings, suggestionList) {
     super(app);
     this.editor = editor;
@@ -2867,7 +2885,7 @@ var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
     let content = await this.app.vault.read(item);
     this.editor.replaceRange(content, { line: 0, ch: 0 });
     let oldContent = this.editor.getValue();
-    let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian2.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
+    let newContent = oldContent.replace(new RegExp("{{date}}", "gi"), (0, import_obsidian3.moment)().format(this.settings.dateFormat)).replace("people: ", `people:
   - ${this.settings.username}`).replace("createdBy: ", `createdBy: ${this.settings.username}`);
     await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
     return;
@@ -2895,7 +2913,7 @@ var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
     }
   }
 };
-var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
+var StatusSuggestionModal = class extends import_obsidian3.SuggestModal {
   constructor(editor, settings, suggestionList, lineNum) {
     super(app);
     this.editor = editor;
@@ -2922,7 +2940,7 @@ var StatusSuggestionModal = class extends import_obsidian2.SuggestModal {
     await this.app.vault.modify(this.app.workspace.getActiveFile(), newContent);
   }
 };
-var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
+var PeopleSuggestionModal = class extends import_obsidian3.SuggestModal {
   constructor(editor, settings, suggestionList, insertLocation) {
     super(app);
     this.editor = editor;
@@ -2967,19 +2985,12 @@ function updateLastEditDate(editor, settings) {
     let line = editor.getLine(lineIndex);
     if (line.startsWith(settings.lastEditDateStr)) {
       if (editor.getCursor().line != lineIndex) {
-        if (line.length > settings.lastEditDateStr.length + settings.dateFormat.length) {
-          editor.replaceRange(
-            (0, import_obsidian3.moment)().format(settings.dateFormat),
-            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-            { line: lineIndex, ch: settings.lastEditDateStr.length + settings.dateFormat.length + 1 }
-          );
-        } else {
-          editor.replaceRange(
-            (0, import_obsidian3.moment)().format(settings.dateFormat),
-            { line: lineIndex, ch: settings.lastEditDateStr.length + 1 },
-            { line: lineIndex, ch: line.length }
-          );
-        }
+        const newLine = `${settings.lastEditDateStr} ${(0, import_obsidian4.moment)().format(settings.dateFormat)}`;
+        editor.replaceRange(
+          newLine,
+          { line: lineIndex, ch: 0 },
+          { line: lineIndex, ch: line.length }
+        );
       }
       break;
     }
@@ -3012,7 +3023,7 @@ function openTemplateSuggestionModal(app2, settings) {
 }
 
 // src/autotext.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 function disableAutoText(app2, editor, settings) {
   var _a;
   let dataviewLineTrack = 0;
@@ -3047,7 +3058,7 @@ function disableAutoText(app2, editor, settings) {
 function generateAutoText(app2, editor, settings) {
   if (!disableAutoText(app2, editor, settings)) {
     editor.replaceRange(
-      "\n\n" + settings.separationLineStr + "\n" + (0, import_obsidian4.moment)().format(settings.dateFormat) + " " + settings.username,
+      "\n\n" + settings.separationLineStr + "\n" + (0, import_obsidian5.moment)().format(settings.dateFormat) + " " + settings.username,
       { line: editor.getCursor().line - 1, ch: editor.getLine(editor.getCursor().line - 1).length }
     );
     editor.replaceRange(
@@ -3058,7 +3069,7 @@ function generateAutoText(app2, editor, settings) {
 }
 
 // main.ts
-var TextPlugin = class extends import_obsidian5.Plugin {
+var TextPlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
     this.isUpdating = false;
@@ -3090,7 +3101,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         if (path.includes(archivedFolderName)) {
           return;
         }
-        const archivedFolderPath = `${dir[0]}/${archivedFolderName}/${(0, import_obsidian5.moment)().format("YYYY")}/${(0, import_obsidian5.moment)().format("MM")}`;
+        const archivedFolderPath = `${dir[0]}/${archivedFolderName}/${(0, import_obsidian6.moment)().format("YYYY")}/${(0, import_obsidian6.moment)().format("MM")}`;
         if (!await this.app.vault.adapter.exists(archivedFolderPath)) {
           await this.app.vault.createFolder(archivedFolderPath);
         }
@@ -3112,7 +3123,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
       }));
     }, 1e3);
     this.registerEvent(this.app.vault.on("modify", async (file) => {
-      if (!(file instanceof import_obsidian5.TFile))
+      if (!(file instanceof import_obsidian6.TFile))
         return;
       if (!file.path.endsWith(".md"))
         return;
@@ -3167,6 +3178,21 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         });
       })
     );
+    this.addCommand({
+      id: "validate-people-in-folder",
+      name: "Validate People in Folder",
+      checkCallback: (checking) => {
+        var _a;
+        const file = this.app.workspace.getActiveFile();
+        if (file === null)
+          return false;
+        if (checking) {
+          return true;
+        }
+        const folderPath = ((_a = file.parent) == null ? void 0 : _a.path) || "/";
+        validatePeopleInFolder(this.app, this.settings, folderPath, validatePeople);
+      }
+    });
   }
   onunload() {
   }

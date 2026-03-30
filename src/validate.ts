@@ -1,5 +1,6 @@
-import { App, TFile } from 'obsidian';
+import { App, TFile, Notice } from 'obsidian';
 import * as yaml from 'js-yaml';
+import { TextPluginSettings } from './settings';
 
 function arrayEqual(a: string[], b: string[]) {
 	if (!Array.isArray(a) || !Array.isArray(b)) return false;
@@ -96,4 +97,38 @@ export async function updateFrontmatterFields(app: App, file: TFile, fields: Rec
 	// if (leaf) {
 	// 	await leaf.openFile(file);
 	// }
+}
+
+/**
+ * 批量验证文件夹下的所有.md文件的people和assignedTo字段
+ * @param app Obsidian App
+ * @param settings 插件设置
+ * @param folderPath 文件夹路径
+ * @param validateFn 验证函数（默认为validatePeople）
+ */
+export async function validatePeopleInFolder(
+	app: App,
+	settings: TextPluginSettings,
+	folderPath: string,
+	validateFn: (this: { app: App }, file: TFile) => Promise<void>
+) {
+	const files = app.vault.getFiles();
+	const mdFiles = files.filter(file => 
+		file.path.startsWith(folderPath) && 
+		file.extension === 'md' &&
+		!file.path.startsWith(settings.templateFolderPath)
+	);
+
+	if (mdFiles.length === 0) {
+		new Notice('No markdown files found in this folder');
+		return;
+	}
+
+	new Notice(`Validating ${mdFiles.length} files...`);
+	
+	for (const file of mdFiles) {
+		await validateFn.call({ app }, file);
+	}
+
+	new Notice(`Validated ${mdFiles.length} files`);
 }

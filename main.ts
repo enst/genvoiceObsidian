@@ -2,7 +2,7 @@ import { App, Editor, Notice, Plugin, moment, TFile, Command, Menu, MarkdownView
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
 import { updateLastEditDate, openPeopleSuggestionModal, openTemplateSuggestionModal, openStatusSuggestionModal } from './src/assets'
 import { generateAutoText } from './src/autotext'
-import { validatePeople } from 'src/validate';
+import { validatePeople, validatePeopleInFolder } from 'src/validate';
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
@@ -188,6 +188,23 @@ export default class TextPlugin extends Plugin {
 				});
 			})
 		);
+
+		// 添加命令：验证当前文件夹下的所有.md文件的people和assignedTo字段
+		this.addCommand({
+			id: 'validate-people-in-folder',
+			name: 'Validate People in Folder',
+			checkCallback: (checking: boolean) => {
+				const file = this.app.workspace.getActiveFile();
+				if (file === null) return false;
+				
+				if (checking) {
+					return true;
+				}
+
+				const folderPath = file.parent?.path || '/';
+				validatePeopleInFolder(this.app, this.settings, folderPath, validatePeople);
+			}
+		});
 	}
 
 	onunload() {
