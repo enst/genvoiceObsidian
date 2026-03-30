@@ -2791,22 +2791,22 @@ function arrayEqual(a, b) {
   return sa === sb;
 }
 async function validatePeople(file) {
-  var _a, _b, _c;
+  var _a, _b;
   const cache = this.app.metadataCache.getFileCache(file);
   let people = [];
   let assignedTo = [];
-  const metadata = (_a = app.metadataCache.getFileCache(this.app.workspace.getActiveFile())) == null ? void 0 : _a.frontmatter;
+  const metadata = cache == null ? void 0 : cache.frontmatter;
   if (!metadata || !metadata.hasOwnProperty("people") || !metadata.hasOwnProperty("assignedTo")) {
     return;
   }
-  if ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b.people) {
+  if ((_a = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _a.people) {
     if (Array.isArray(cache.frontmatter.people)) {
       people = cache.frontmatter.people;
     } else if (typeof cache.frontmatter.people === "string") {
       people = [cache.frontmatter.people];
     }
   }
-  if ((_c = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _c.assignedTo) {
+  if ((_b = cache == null ? void 0 : cache.frontmatter) == null ? void 0 : _b.assignedTo) {
     if (Array.isArray(cache.frontmatter.assignedTo)) {
       assignedTo = cache.frontmatter.assignedTo;
     } else if (typeof cache.frontmatter.assignedTo === "string") {
@@ -2825,7 +2825,7 @@ async function validatePeople(file) {
   if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
     return;
   }
-  await updateFrontmatterFields(app, file, {
+  await updateFrontmatterFields(this.app, file, {
     people: allPeople,
     assignedTo: allAssignedTo
   });
@@ -3062,12 +3062,25 @@ var TextPlugin = class extends import_obsidian5.Plugin {
   constructor() {
     super(...arguments);
     this.isUpdating = false;
+    // 防止递归
+    this.lastActiveFile = null;
+    this.isValidatingPeople = false;
   }
-  // 防止递归
+  async runValidatePeople(file) {
+    if (this.isValidatingPeople)
+      return;
+    this.isValidatingPeople = true;
+    try {
+      await validatePeople.call(this, file);
+    } finally {
+      this.isValidatingPeople = false;
+    }
+  }
   // obsidian 启动时激活
   async onload() {
     await this.loadSettings();
     this.addSettingTab(new TextPluginSettingTab(this.app, this));
+    this.lastActiveFile = this.app.workspace.getActiveFile();
     this.registerEvent(this.app.metadataCache.on("changed", async (file, data, cache) => {
       var _a;
       let path = file.path;
@@ -3098,11 +3111,32 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         }, 500);
       }));
     }, 1e3);
+    this.registerEvent(this.app.vault.on("modify", async (file) => {
+      if (!(file instanceof import_obsidian5.TFile))
+        return;
+      if (!file.path.endsWith(".md"))
+        return;
+      if (file.path.startsWith(this.settings.templateFolderPath))
+        return;
+      await this.runValidatePeople(file);
+    }));
+    this.registerEvent(this.app.workspace.on("file-open", async (file) => {
+      const previousFile = this.lastActiveFile;
+      this.lastActiveFile = file != null ? file : null;
+      if (!previousFile)
+        return;
+      if (file && previousFile.path === file.path)
+        return;
+      if (previousFile.path.startsWith(this.settings.templateFolderPath))
+        return;
+      await this.runValidatePeople(previousFile);
+    }));
     this.registerEvent(
       this.app.workspace.on("editor-change", async (editor) => {
         const file = this.app.workspace.getActiveFile();
         if (!editor || !file)
           return;
+        this.lastActiveFile = file;
         if (this.isUpdating)
           return;
         if (file.path.startsWith(this.settings.templateFolderPath)) {
@@ -3112,7 +3146,7 @@ var TextPlugin = class extends import_obsidian5.Plugin {
         try {
           updateLastEditDate(editor, this.settings);
           generateAutoText(this.app, editor, this.settings);
-          await validatePeople(file);
+          await this.runValidatePeople(file);
         } finally {
           this.isUpdating = false;
         }

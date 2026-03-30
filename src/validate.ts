@@ -1,4 +1,4 @@
-import { App, CachedMetadata, TFile } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import * as yaml from 'js-yaml';
 
 function arrayEqual(a: string[], b: string[]) {
@@ -15,7 +15,7 @@ export async function validatePeople(file: TFile) {
 	let people: string[] = [];
 	let assignedTo: string[] = [];
 
-	const metadata = app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
+	const metadata = cache?.frontmatter;
 	if (!metadata || !metadata.hasOwnProperty('people') || !metadata.hasOwnProperty('assignedTo')) {
 		return;
 	}
@@ -66,7 +66,7 @@ export async function validatePeople(file: TFile) {
 		return;
 	}
 
-	await updateFrontmatterFields(app, file, {
+	await updateFrontmatterFields(this.app, file, {
 		people: allPeople,
 		assignedTo: allAssignedTo
 	});

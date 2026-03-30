@@ -7,6 +7,18 @@ import { validatePeople } from 'src/validate';
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
 	private isUpdating: boolean = false; // 防止递归
+	private lastActiveFile: TFile | null = null;
+	private isValidatingPeople = false;
+
+	private async runValidatePeople(file: TFile) {
+		if (this.isValidatingPeople) return;
+		this.isValidatingPeople = true;
+		try {
+			await validatePeople.call(this, file);
+		} finally {
+			this.isValidatingPeople = false;
+		}
+	}
 
 	// obsidian 启动时激活
 
@@ -16,6 +28,7 @@ export default class TextPlugin extends Plugin {
 
 		await this.loadSettings();
 		this.addSettingTab(new TextPluginSettingTab(this.app, this));
+		this.lastActiveFile = this.app.workspace.getActiveFile();
 
 		/*
 				// 功能：文档被更改时，自动更新最近更改日期
@@ -104,6 +117,24 @@ export default class TextPlugin extends Plugin {
 			}));
 		}, 1000);
 
+		this.registerEvent(this.app.vault.on('modify', async (file) => { // 存盘时触发
+			if (!(file instanceof TFile)) return;
+			if (!file.path.endsWith('.md')) return;
+			if (file.path.startsWith(this.settings.templateFolderPath)) return;
+			// console.log('File modified:', file.path);
+			await this.runValidatePeople(file);
+		}));
+
+		this.registerEvent(this.app.workspace.on('file-open', async (file) => {
+			const previousFile = this.lastActiveFile;
+			this.lastActiveFile = file ?? null;
+
+			if (!previousFile) return;
+			if (file && previousFile.path === file.path) return;
+			if (previousFile.path.startsWith(this.settings.templateFolderPath)) return;
+			await this.runValidatePeople(previousFile);
+		}));
+
 		// 功能：自动弹出 status 选择窗口
 		// - openStatusSuggestionModal 可在 ./src/assets.ts 找到
 
@@ -119,6 +150,7 @@ export default class TextPlugin extends Plugin {
 			this.app.workspace.on('editor-change', async (editor: Editor) => {
 				const file = this.app.workspace.getActiveFile();
 				if (!editor || !file) return;
+				this.lastActiveFile = file;
 				if (this.isUpdating) return; // 防止递归
 				if (file.path.startsWith(this.settings.templateFolderPath)) {
 					// 如果是 template 文件夹下的文件，则不进行自动更新
@@ -129,7 +161,7 @@ export default class TextPlugin extends Plugin {
 					updateLastEditDate(editor, this.settings);
 					generateAutoText(this.app, editor, this.settings);
 					// const cache = this.app.metadataCache.getFileCache(file);
-					await validatePeople(file);
+					await this.runValidatePeople(file);
 				} finally {
 					this.isUpdating = false;
 				}
