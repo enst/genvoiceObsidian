@@ -1,134 +1,80 @@
 import { App, TFile, Notice } from 'obsidian';
-import * as yaml from 'js-yaml';
 import { TextPluginSettings } from './settings';
+import { asList, normalizePeople, sameMembers } from './logic';
+import { tidyPeopleText } from './people';
 
-function arrayEqual(a: string[], b: string[]) {
-	if (!Array.isArray(a) || !Array.isArray(b)) return false;
-	if (a.length !== b.length) return false;
-	const sa = [...a].sort().join(',');
-	const sb = [...b].sort().join(',');
-	return sa === sb;
-}
-
-export async function validatePeople(file: TFile) {
-	// console.log('Validating people and assignedTo in frontmatter for file:', file.path);
-	const cache = this.app.metadataCache.getFileCache(file);
-	let people: string[] = [];
-	let assignedTo: string[] = [];
-
-	const metadata = cache?.frontmatter;
-	if (!metadata || !metadata.hasOwnProperty('people') || !metadata.hasOwnProperty('assignedTo')) {
-		return;
-	}
-
-	if (cache?.frontmatter?.people) {
-		if (Array.isArray(cache.frontmatter.people)) {
-			people = cache.frontmatter.people;
-		} else if (typeof cache.frontmatter.people === 'string') {
-			people = [cache.frontmatter.people];
-		}
-	}
-
-	if (cache?.frontmatter?.assignedTo) {
-		if (Array.isArray(cache.frontmatter.assignedTo)) {
-			assignedTo = cache.frontmatter.assignedTo;
-		} else if (typeof cache.frontmatter.assignedTo === 'string') {
-			assignedTo = [cache.frontmatter.assignedTo];
-		}
-	}
-
-	// console.log('people:', people);
-	// console.log('assignedTo:', assignedTo);
-
-	// 用正则分割每个元素，过滤空字符串
-	const splitAndClean = (arr: string[]) =>
-		arr.flatMap(s =>
-			s.split(/[^a-zA-Z]+/)
-				.filter(Boolean)
-				.map(str => str.toLowerCase())
-		);
-
-	const peopleClean = splitAndClean(people);
-	const assignedToClean = splitAndClean(assignedTo);
-
-	// 用 Set 去重合并
-	const allPeopleSet = new Set([...peopleClean, ...assignedToClean]);
-	const allPeople = Array.from(allPeopleSet);
-
-	const allAssignedToSet = new Set(assignedToClean);
-	const allAssignedTo = Array.from(allAssignedToSet);
-
-	// console.log('allPeople:', allPeople);
-	// console.log('allAssignedTo:', allAssignedTo);
-
-	if (arrayEqual(people, allPeople) && arrayEqual(assignedTo, allAssignedTo)) {
-		// 如果没有变化，直接返回
-		// console.log('No changes in people or assignedTo fields, skipping update.');
-		return;
-	}
-
-	await updateFrontmatterFields(this.app, file, {
-		people: allPeople,
-		assignedTo: allAssignedTo
+// 按 change 改写一篇笔记：只在内容确实有变化时才写文件。返回有没有写。
+// beforeWrite 在确定要写之前调用一次。
+export async function editNote(app: App, file: TFile, change: (text: string) => string, beforeWrite?: () => void): Promise<boolean> {
+	const current = await app.vault.read(file);
+	if (change(current) === current) return false;
+	if (beforeWrite) beforeWrite();
+	let changed = false;
+	// process 是 “读 - 改 - 写” 一步完成的：以写的那一刻文件里的内容为准，不会用旧内容盖掉新内容
+	await app.vault.process(file, (text) => {
+		const next = change(text);
+		changed = next !== text;
+		return next;
 	});
+	return changed;
 }
 
-/**
- * 批量修改 frontmatter 字段
- * @param app Obsidian App
- * @param file 目标 TFile
- * @param fields 要修改的字段对象，如 { people: ['a','b'], assignedTo: ['c'] }
- */
-export async function updateFrontmatterFields(app: App, file: TFile, fields: Record<string, any>) {
-	console.log('Updating frontmatter fields for file:', file.path);
-	const content = await app.vault.read(file);
-	const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/m.exec(content);
-	if (!match) return;
-
-	let data: any = yaml.load(match[1]) || {};
-	for (const key in fields) {
-		data[key] = fields[key];
+// 整理一篇笔记的 people 和 assignedTo（规则见 src/people.ts）。返回有没有改。
+export async function validatePeople(app: App, file: TFile, known: ReadonlySet<string>, beforeWrite?: () => void): Promise<boolean> {
+	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter;
+	if (!frontmatter
+		|| !Object.prototype.hasOwnProperty.call(frontmatter, 'people')
+		|| !Object.prototype.hasOwnProperty.call(frontmatter, 'assignedTo')) {
+		return false;
 	}
 
-	const newYaml = yaml.dump(data, { lineWidth: 1000 }).trim();
-	const newContent = `---\n${newYaml}\n---\n${match[2]}`;
-	await app.vault.modify(file, newContent);
-	// const leaf = app.workspace.activeLeaf;
-	// if (leaf) {
-	// 	await leaf.openFile(file);
-	// }
+	// 先看 Obsidian 的缓存：绝大多数时候不需要改，连文件都不用读
+	const people = asList(frontmatter.people);
+	const assignedTo = asList(frontmatter.assignedTo);
+	const next = normalizePeople(people, assignedTo, known);
+	if (sameMembers(people, next.people) && sameMembers(assignedTo, next.assignedTo)) return false;
+
+	return editNote(app, file, (text) => tidyPeopleText(text, known), beforeWrite);
 }
 
-/**
- * 批量验证文件夹下的所有.md文件的people和assignedTo字段
- * @param app Obsidian App
- * @param settings 插件设置
- * @param folderPath 文件夹路径
- * @param validateFn 验证函数（默认为validatePeople）
- */
+// 批量整理一个文件夹（含子文件夹）下所有笔记的 people 和 assignedTo
+// mayEdit：这个路径本人能不能写。只读的笔记跳过。
 export async function validatePeopleInFolder(
 	app: App,
 	settings: TextPluginSettings,
 	folderPath: string,
-	validateFn: (this: { app: App }, file: TFile) => Promise<void>
+	known: ReadonlySet<string>,
+	mayEdit: (path: string) => boolean,
 ) {
-	const files = app.vault.getFiles();
-	const mdFiles = files.filter(file => 
-		file.path.startsWith(folderPath) && 
-		file.extension === 'md' &&
-		!file.path.startsWith(settings.templateFolderPath)
-	);
+	const folder = folderPath.replace(/^\/+|\/+$/g, '');
+	if (folder === '') {
+		// 库的根目录：不做全库的批量改写
+		new Notice('Open a note inside a folder, then run this command again');
+		return;
+	}
+	const prefix = folder + '/';
+	const files = app.vault.getMarkdownFiles().filter((file) =>
+		file.path.startsWith(prefix) && !file.path.startsWith(settings.templateFolderPath));
 
-	if (mdFiles.length === 0) {
+	if (files.length === 0) {
 		new Notice('No markdown files found in this folder');
 		return;
 	}
 
-	new Notice(`Validating ${mdFiles.length} files...`);
-	
-	for (const file of mdFiles) {
-		await validateFn.call({ app }, file);
+	new Notice(`Validating ${files.length} files...`);
+	let changed = 0;
+	let skipped = 0;
+	for (const file of files) {
+		if (!mayEdit(file.path)) {
+			skipped++;
+			continue;
+		}
+		try {
+			if (await validatePeople(app, file, known)) changed++;
+		} catch (error) {
+			console.error('Validate people failed:', file.path, error);
+		}
 	}
-
-	new Notice(`Validated ${mdFiles.length} files`);
+	const readOnly = skipped > 0 ? `, ${skipped} read-only skipped` : '';
+	new Notice(`Validated ${files.length} files: ${changed} updated${readOnly}`);
 }

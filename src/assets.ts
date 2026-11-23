@@ -1,76 +1,61 @@
-import { App, Editor, moment, TFile, Notice } from 'obsidian'
+import { App, Editor, moment, TFile } from 'obsidian'
 import { TextPluginSettings } from './settings'
-import { PeopleSuggestionModal, TemplateSuggestionModal, StatusSuggestionModal } from './modals'
+import { PeopleSuggestionModal, TemplateSuggestionModal } from './modals'
+import { updatedDateLine } from './logic'
 
 // 自动更新最近更改日期
+//	- 只看文档开头到第一个空行之间的内容（也就是属性区），和以前一样
+//	- 光标正停在日期那一行时不动它，这样可以手改
+//	- 日期没变就不替换，免得每敲一个字都往撤销历史里塞一次没有变化的修改
 
 export function updateLastEditDate(editor: Editor, settings: TextPluginSettings) {
-	let lineIndex = 0;
-	while (editor.getLine(lineIndex)) {
-		let line = editor.getLine(lineIndex);
-		if (line.startsWith(settings.lastEditDateStr)) {
-			if (editor.getCursor().line != lineIndex) {
-				// 无论旧值格式如何，整行替换为标准格式，避免长度不一致导致截断或残留
-				const newLine = `${settings.lastEditDateStr} ${moment().format(settings.dateFormat)}`;
+	if (!settings.lastEditDateStr) return;
+	const today = moment().format(settings.dateFormat);
+	const lineCount = editor.lineCount();
+	for (let lineIndex = 0; lineIndex < lineCount; lineIndex++) {
+		const line = editor.getLine(lineIndex);
+		if (!line) break;
+		if (!line.startsWith(settings.lastEditDateStr)) continue;
+		if (editor.getCursor().line != lineIndex) {
+			// 无论旧值格式如何，整行替换为标准格式，避免长度不一致导致截断或残留
+			const newLine = updatedDateLine(line, settings.lastEditDateStr, today);
+			if (newLine !== null) {
 				editor.replaceRange(
 					newLine,
 					{ line: lineIndex, ch: 0 },
 					{ line: lineIndex, ch: line.length }
 				)
 			}
-			break;
 		}
-		lineIndex ++;	
+		break;
 	}
 }
 
-// 从文件夹提取所有人名，并弹出人名选择窗口
+// 从文件夹提取所有人名
 
-export async function openPeopleSuggestionModal(app: App, settings: TextPluginSettings) {
-	let editor = app.workspace.activeEditor!.editor!;
-	let location = editor.getCursor();
-	
-	const files: TFile[] = app.vault.getMarkdownFiles();
-	const people: string[] = [];
-	for (let index = 0; index < files.length; index++) {
-		if (files[index].path.startsWith(settings.peopleFolderPath)) {
-			people.push(files[index].basename);
-		}
-	}
-	editor.setCursor({ line: editor.getCursor().line - 1, ch: 0 })
-	new PeopleSuggestionModal(app.workspace.activeEditor!.editor!, settings, people, location).open();
+export function collaboratorNames(app: App, settings: TextPluginSettings): string[] {
+	return app.vault.getMarkdownFiles()
+		.filter((file) => file.path.startsWith(settings.peopleFolderPath))
+		.map((file) => file.basename);
 }
 
-// 弹出文件 status 选择窗口
+// 整理 people / assignedTo 时认得的名字：协作者名单，加上自己
 
-export async function openStatusSuggestionModal(app: App, settings: TextPluginSettings, lineNum: number) {
-	const files: TFile[] = app.vault.getMarkdownFiles().filter((file) => file.path.startsWith('All/status'));
-	const statusFile = files[0];
-	const statusOptions: string[] = (await app.vault.read(statusFile)).split('\n');
-	new StatusSuggestionModal(app.workspace.activeEditor!.editor!, settings, statusOptions, lineNum).open();
+export function knownNames(app: App, settings: TextPluginSettings): Set<string> {
+	const names = collaboratorNames(app, settings).map((name) => name.toLowerCase());
+	if (settings.username) names.push(settings.username.toLowerCase());
+	return new Set(names);
 }
 
-// 弹出文件 template 选择窗口
+// 弹出人名选择窗口
 
-export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings) {
-    const files: TFile[] = app.vault.getMarkdownFiles();
-    const templateFiles = files.filter(file => file.path.startsWith(settings.templateFolderPath));
-    new TemplateSuggestionModal(app.workspace.activeEditor!.editor!, settings, templateFiles).open();
+export function openPeopleSuggestionModal(app: App, settings: TextPluginSettings, onChoose: (name: string) => void) {
+	new PeopleSuggestionModal(app, collaboratorNames(app, settings), onChoose).open();
 }
 
-export function initTemplatePpl (app: App, editor: Editor, settings: TextPluginSettings) {
-	for (let index = 0; index < 20; index++) {
-		if (editor.getLine(index).startsWith('people:')) {
-			editor.replaceRange(
-				`~${settings.username}`,
-				{ line: index, ch: 8 }
-			)
-		}
-		if (editor.getLine(index).startsWith('createdBy:')) {
-			editor.replaceRange(
-				`~${settings.username}`,
-				{ line: index, ch: 11 }
-			)
-		}
-	}
+// 弹出文件 template 选择窗口，选中的模板写进 target（新建的那篇笔记）
+
+export function openTemplateSuggestionModal(app: App, settings: TextPluginSettings, target: TFile, beforeInsert: () => void) {
+	const templateFiles = app.vault.getMarkdownFiles().filter(file => file.path.startsWith(settings.templateFolderPath));
+	new TemplateSuggestionModal(app, settings, templateFiles, target, beforeInsert).open();
 }

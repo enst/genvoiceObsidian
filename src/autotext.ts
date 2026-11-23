@@ -1,13 +1,13 @@
-import { App, Editor, moment, Notice } from 'obsidian'
+import { App, Editor, moment, TFile } from 'obsidian'
 import { TextPluginSettings } from './settings'
 
 // 检测当前文档是否符合 header 插入的要求
 
-function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings): boolean {
+function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings, file: TFile): boolean {
     let dataviewLineTrack = 0;
     let topLevelLineTrack = 0;
     let isTemplate = false;
-    const metadata = app.metadataCache.getFileCache(this.app.workspace.getActiveFile()!)?.frontmatter;
+    const metadata = app.metadataCache.getFileCache(file)?.frontmatter;
     // if (typeof metadata.people === 'string' || ( metadata.people instanceof Array && metadata.people.length) ) {
     if (metadata && metadata.hasOwnProperty('people')) {
         isTemplate = true;
@@ -45,8 +45,8 @@ function disableAutoText(app: App, editor: Editor, settings: TextPluginSettings)
 
 // 自动插入 header 以及更改人信息
 
-export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings) {
-    if (!disableAutoText(app, editor, settings)) {
+export function generateAutoText(app: App, editor: Editor, settings: TextPluginSettings, file: TFile) {
+    if (!disableAutoText(app, editor, settings, file)) {
         editor.replaceRange(
             '\n\n' + settings.separationLineStr + '\n' + moment().format(settings.dateFormat) + ' ' + settings.username,
             { line: editor.getCursor().line - 1, ch: editor.getLine(editor.getCursor().line - 1).length }
