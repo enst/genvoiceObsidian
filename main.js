@@ -324,6 +324,17 @@ function fillTemplate(text, today, username) {
   return text.replace(/{{date}}/gi, today).replace("people: ", `people:
   - ${username}`).replace("createdBy: ", `createdBy: ${username}`);
 }
+function parseOptions(text) {
+  const out = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim().replace(/^[-*]\s+/, "").trim();
+    if (line.length === 0 || line.startsWith("#") || line.endsWith(":"))
+      continue;
+    if (!out.includes(line))
+      out.push(line);
+  }
+  return out;
+}
 function isLevel(value) {
   return value === "none" || value === "read" || value === "write";
 }
@@ -387,15 +398,18 @@ var TemplateSuggestionModal = class extends import_obsidian2.SuggestModal {
     await this.app.vault.process(this.target, (current) => fillTemplate(template + current, today, this.settings.username));
   }
 };
-var PeopleSuggestionModal = class extends import_obsidian2.SuggestModal {
-  constructor(app, suggestionList, onChoose) {
+var ChoiceSuggestionModal = class extends import_obsidian2.SuggestModal {
+  // sorted：按字母排序（人名）；否则保持传进来的顺序（状态词表的顺序是维护人排的）
+  constructor(app, suggestionList, placeholder, onChoose, sorted) {
     super(app);
     this.suggestionList = suggestionList;
     this.onChoose = onChoose;
-    this.setPlaceholder("Who are you assigning this to?");
+    this.sorted = sorted;
+    this.setPlaceholder(placeholder);
   }
   getSuggestions(query) {
-    return this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase())).sort();
+    const matches = this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
+    return this.sorted ? matches.sort() : matches;
   }
   renderSuggestion(item, el) {
     el.createEl("div", { text: item });
@@ -440,7 +454,10 @@ function knownNames(app, settings) {
   return new Set(names);
 }
 function openPeopleSuggestionModal(app, settings, onChoose) {
-  new PeopleSuggestionModal(app, collaboratorNames(app, settings), onChoose).open();
+  new ChoiceSuggestionModal(app, collaboratorNames(app, settings), "Who are you assigning this to?", onChoose, true).open();
+}
+function openStatusSuggestionModal(app, statusOptions, onChoose) {
+  new ChoiceSuggestionModal(app, statusOptions, "Set status to...", onChoose, false).open();
 }
 function openTemplateSuggestionModal(app, settings, target, beforeInsert) {
   const templateFiles = app.vault.getMarkdownFiles().filter((file) => file.path.startsWith(settings.templateFolderPath));
@@ -850,6 +867,7 @@ var SyncHubContext = class {
 
 // main.ts
 var STATUS_FILE = "All/status.md";
+var STATUS_KEY = "status";
 var TextPlugin = class extends import_obsidian6.Plugin {
   constructor() {
     super(...arguments);
@@ -862,15 +880,16 @@ var TextPlugin = class extends import_obsidian6.Plugin {
     this.comparing = /* @__PURE__ */ new Set();
     this.archiving = /* @__PURE__ */ new Set();
     this.watchedDocuments = /* @__PURE__ */ new Set();
+    this.statusMenu = null;
   }
+  // 点 status 弹出来的那个菜单，和它属于哪一行
   async loadStatusOptions() {
     const statusFile = this.app.vault.getAbstractFileByPath(STATUS_FILE);
     if (!(statusFile instanceof import_obsidian6.TFile)) {
       this.statusOptions = [];
       return;
     }
-    const statusOptions = (await this.app.vault.read(statusFile)).split("\n").map((s) => s.trim()).map((s) => s.replace(/^[-*]\s+/, "").trim()).filter((s) => s.length > 0 && !s.startsWith("#") && !s.endsWith(":"));
-    this.statusOptions = Array.from(new Set(statusOptions)).sort();
+    this.statusOptions = parseOptions(await this.app.vault.read(statusFile));
   }
   isActive(file) {
     var _a;
@@ -885,6 +904,94 @@ var TextPlugin = class extends import_obsidian6.Plugin {
     for (const type of ["keydown", "beforeinput", "input", "paste", "cut", "drop", "pointerdown"]) {
       this.registerDomEvent(doc, type, () => this.local.input(Date.now()), { capture: true, passive: true });
     }
+    this.registerDomEvent(doc, "mousedown", (evt) => {
+      if (this.statusClick(evt) === null)
+        return;
+      evt.preventDefault();
+      evt.stopPropagation();
+    }, { capture: true });
+    this.registerDomEvent(doc, "click", (evt) => {
+      const hit = this.statusClick(evt);
+      if (hit === null)
+        return;
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (evt.detail > 1)
+        return;
+      this.toggleStatusMenu(hit.file, hit.row, evt);
+    }, { capture: true });
+  }
+  // 功能：点属性面板里 status 的值，弹出状态词表里的选项（实时预览、阅读视图、侧栏的文件属性都一样）
+  //	- 返回这次点击要改的笔记和点的是哪一行；不归这个功能管的点击返回 null，Obsidian 照常处理
+  //	- 按住 Alt / Ctrl / ⌘ / Shift 再点，或者用键盘进到输入框，仍然可以手动输入
+  //	- 没有状态词表、只读的笔记、status 不是文本类型时不拦
+  statusClick(evt) {
+    if (evt.button !== 0 || evt.altKey || evt.ctrlKey || evt.metaKey || evt.shiftKey)
+      return null;
+    if (this.statusOptions.length === 0)
+      return null;
+    const target = evt.target;
+    if (!target || typeof target.closest !== "function")
+      return null;
+    const value = target.closest(".metadata-property-value");
+    const row = value == null ? void 0 : value.closest(".metadata-property");
+    if (!value || !row || row.getAttribute("data-property-key") !== STATUS_KEY)
+      return null;
+    if (value.querySelector(".metadata-input-longtext") === null)
+      return null;
+    const file = this.noteOfElement(row);
+    if (file === null || !this.synchub.canWrite(file.path))
+      return null;
+    return { file, row };
+  }
+  // 页面上的一个元素属于哪篇笔记（它所在的标签页或侧栏视图显示的那一篇）
+  noteOfElement(el) {
+    var _a;
+    const found = [];
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (found.length > 0 || !leaf.view.containerEl.contains(el))
+        return;
+      const file = leaf.view.file;
+      if (file instanceof import_obsidian6.TFile)
+        found.push(file);
+    });
+    return (_a = found[0]) != null ? _a : null;
+  }
+  // 任何时候最多只有一个状态菜单。
+  // 这些点击被上面拦下了，Obsidian 自己 “点别处就收起菜单” 的处理看不到它们，所以要在这里收起：
+  // 在同一行上再点一下是收起；点的是另一行（例如侧栏里的），收起原来的，再弹出新的。
+  toggleStatusMenu(file, row, evt) {
+    var _a;
+    const previous = this.statusMenu;
+    this.statusMenu = null;
+    if (previous !== null) {
+      const stillOpen = ((_a = previous.menu.dom) == null ? void 0 : _a.isConnected) === true;
+      previous.menu.hide();
+      if (stillOpen && previous.row === row)
+        return;
+    }
+    const menu = this.showStatusMenu(file, row, evt);
+    this.statusMenu = { menu, row };
+  }
+  // 菜单像下拉框一样出现在 status 那一格的正下方，不压在鼠标上：这样再点一下点到的还是那一格（收起），
+  // 不会点到菜单里的某一项。macOS 上也用页面里的菜单而不是系统原生菜单，各个系统上的行为才一样。
+  showStatusMenu(file, row, evt) {
+    var _a, _b, _c;
+    const current = (_b = (_a = this.app.metadataCache.getFileCache(file)) == null ? void 0 : _a.frontmatter) == null ? void 0 : _b[STATUS_KEY];
+    const menu = new import_obsidian6.Menu();
+    if (typeof menu.setUseNativeMenu === "function")
+      menu.setUseNativeMenu(false);
+    for (const status of this.statusOptions) {
+      menu.addItem((item) => {
+        item.setTitle(status).setChecked(status === current).onClick(() => void this.setStatus(file, status));
+      });
+    }
+    const box = (_c = row.querySelector(".metadata-property-value")) == null ? void 0 : _c.getBoundingClientRect();
+    if (box)
+      menu.showAtPosition({ x: box.left, y: box.bottom }, row.ownerDocument);
+    else
+      menu.showAtMouseEvent(evt);
+    return menu;
   }
   // 菜单操作前检查：只读的笔记不改，并告诉本人
   async canEdit(file) {
@@ -902,11 +1009,15 @@ var TextPlugin = class extends import_obsidian6.Plugin {
       return next === text ? text : touchLastEditDate(next, this.settings.lastEditDateStr, today);
     };
   }
-  // 功能：右键菜单 Set Task Status
+  // 功能：设置 status（右键菜单 Set Task Status、同名的命令、点属性面板里的 status）
   //	- 只改属性区里的 status 那一行，其余内容原样不动
   async setStatusInActiveFile(status) {
     const file = this.app.workspace.getActiveFile();
-    if (!file)
+    if (file)
+      await this.setStatus(file, status);
+  }
+  async setStatus(file, status) {
+    if (!(this.app.vault.getAbstractFileByPath(file.path) instanceof import_obsidian6.TFile))
       return;
     if (!await this.canEdit(file))
       return;
@@ -1185,6 +1296,19 @@ var TextPlugin = class extends import_obsidian6.Plugin {
         });
       })
     );
+    this.addCommand({
+      id: "set-task-status",
+      name: "Set Task Status",
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile();
+        if (file === null || file.extension !== "md" || this.statusOptions.length === 0)
+          return false;
+        if (!checking) {
+          openStatusSuggestionModal(this.app, this.statusOptions, (status) => void this.setStatus(file, status));
+        }
+        return true;
+      }
+    });
     this.addCommand({
       id: "validate-people-in-folder",
       name: "Validate People in Folder",

@@ -2,13 +2,14 @@
 // 每个测试描述一件 “人做的事” 或者 “同步过来的事”，然后看插件改了什么、没改什么。
 import assert from 'node:assert/strict';
 import { afterEach, describe, it } from 'node:test';
-import { GenVoicePlugin, Menu, World, moment, notices, openModals } from './.build/plugin.mjs';
+import { GenVoicePlugin, Menu, World, moment, notices, openModals, shownMenus } from './.build/plugin.mjs';
 
 let world;
 
 async function start(notes, hidden = {}, settings = { username: 'mark' }) {
 	notices.length = 0;
 	openModals.length = 0;
+	shownMenus.length = 0;
 	world = new World({
 		'All/status.md': 'open\npending\nWIP\nclosed\narchived\n',
 		'All/Collaborators/mark.md': '',
@@ -114,9 +115,9 @@ describe('别人的改动同步过来：插件什么都不做', () => {
 
 	it('别人改了状态词表：菜单跟着更新', async () => {
 		await start({});
-		assert.deepEqual(world.plugin.statusOptions, ['WIP', 'archived', 'closed', 'open', 'pending']);
+		assert.deepEqual(world.plugin.statusOptions, ['open', 'pending', 'WIP', 'closed', 'archived'], 'in the order of the file');
 		await world.remoteWrite('All/status.md', 'open\nblocked\n');
-		assert.deepEqual(world.plugin.statusOptions, ['blocked', 'open']);
+		assert.deepEqual(world.plugin.statusOptions, ['open', 'blocked']);
 	});
 });
 
@@ -268,7 +269,7 @@ describe('菜单和命令', () => {
 		const menu = openMenu(editor);
 		assert.deepEqual(menu.items.map((item) => item.title), ['Set Task Status', 'Assign Task To']);
 		const choices = menu.items[0].submenu.items;
-		assert.deepEqual(choices.map((item) => item.title), ['WIP', 'archived', 'closed', 'open', 'pending']);
+		assert.deepEqual(choices.map((item) => item.title), ['open', 'pending', 'WIP', 'closed', 'archived']);
 		await choices.find((item) => item.title === 'closed').click();
 		await world.settle();
 		assert.equal(world.text('Web/a.md'), withToday(task({ status: 'closed' })), 'the status line and the date, nothing else');
@@ -343,9 +344,161 @@ describe('菜单和命令', () => {
 	it('Validate People in Folder：在库的根目录下的笔记上运行，不做全库改写', async () => {
 		await start({ 'loose.md': task(MESSY), 'Web/a.md': task(MESSY) });
 		world.open('loose.md');
-		world.plugin.commands[0].checkCallback(false);
+		world.plugin.commands.find((c) => c.id === 'validate-people-in-folder').checkCallback(false);
 		await world.settle();
 		nothingHappened();
+		assert.deepEqual(notices, ['Open a note inside a folder, then run this command again']);
+	});
+});
+
+describe('点属性面板里的 status 选状态', () => {
+	const titles = (menu) => menu.items.map((item) => item.title);
+
+	it('点 status 的值：弹出状态词表（文件里的顺序），当前状态打勾，输入框不会获得焦点', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const events = await world.click(world.propertyValue('status'));
+		assert.equal(events.mousedown.defaultPrevented && events.mousedown.stopped, true, 'the text box must not take focus');
+		assert.equal(events.click.defaultPrevented && events.click.stopped, true);
+		assert.equal(shownMenus.length, 1);
+		assert.deepEqual(titles(shownMenus[0]), ['open', 'pending', 'WIP', 'closed', 'archived']);
+		assert.deepEqual(shownMenus[0].items.filter((item) => item.checked).map((item) => item.title), ['open']);
+		assert.deepEqual(shownMenus[0].shownAt, { x: 200, y: 124 }, 'right below the value, like a dropdown, not under the mouse');
+		assert.equal(shownMenus[0].native, false, 'the same in-page menu on every system');
+		nothingHappened();
+	});
+
+	it('连着点几次：最多只有一个菜单，再点一下是收起', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const value = world.propertyValue('status');
+		const open = () => shownMenus.filter((menu) => menu.open).length;
+		const counts = [];
+		for (let i = 0; i < 4; i++) {
+			await world.click(value);
+			counts.push(open());
+		}
+		assert.deepEqual(counts, [1, 0, 1, 0]);
+		nothingHappened();
+	});
+
+	it('双击：菜单留着，不会弹出又收起', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const value = world.propertyValue('status');
+		await world.click(value, { detail: 1 });
+		const second = await world.click(value, { detail: 2 });
+		assert.deepEqual(shownMenus.map((menu) => menu.open), [true]);
+		assert.equal(second.mousedown.defaultPrevented && second.click.defaultPrevented, true, 'the text box still does not take focus');
+		nothingHappened();
+	});
+
+	it('菜单开着时去点另一处的 status（侧栏里的）：原来的收起，新的弹出', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		await world.click(world.propertyValue('status'));
+		await world.click(world.propertyValue('status', { pane: world.sidebarEl }));
+		assert.deepEqual(shownMenus.map((menu) => menu.open), [false, true]);
+	});
+
+	it('菜单已经被 Obsidian 收起（点了别处、选了一项）之后再点：照常弹出', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const value = world.propertyValue('status');
+		await world.click(value);
+		shownMenus[0].hide();
+		await world.click(value);
+		assert.deepEqual(shownMenus.map((menu) => menu.open), [false, true]);
+	});
+
+	it('看不出菜单是否还开着时（系统原生菜单）：先收起旧的再弹新的，不会叠在一起', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const value = world.propertyValue('status');
+		await world.click(value);
+		delete shownMenus[0].dom;
+		await world.click(value);
+		assert.deepEqual(shownMenus.map((menu) => menu.open), [false, true]);
+	});
+
+	it('选一个：只改 status 和日期那两行', async () => {
+		await start({ 'Web/a.md': task() });
+		const editor = world.open('Web/a.md');
+		await world.click(world.propertyValue('status'));
+		shownMenus[0].items.find((item) => item.title === 'closed').click();
+		await world.settle();
+		assert.equal(world.text('Web/a.md'), withToday(task({ status: 'closed' })));
+		assert.equal(editor.getValue(), world.text('Web/a.md'));
+		assert.deepEqual(world.fileWrites, ['Web/a.md']);
+	});
+
+	it('选 archived：照常归档', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		await world.click(world.propertyValue('status'));
+		shownMenus[0].items.find((item) => item.title === 'archived').click();
+		await world.settle();
+		assert.deepEqual(world.renames, [['Web/a.md', archivedPath('Web', 'a')]]);
+	});
+
+	it('侧栏的 “文件属性” 里点也一样', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		await world.click(world.propertyValue('status', { pane: world.sidebarEl }));
+		shownMenus[0].items.find((item) => item.title === 'pending').click();
+		await world.settle();
+		assert.equal(world.text('Web/a.md'), withToday(task({ status: 'pending' })));
+	});
+
+	it('不归它管的点击原样放行：别的属性、右键、按着修饰键、不是文本框的 status、不属于任何笔记的面板', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		const passes = async (target, options) => {
+			const events = await world.click(target, options);
+			assert.equal(events.mousedown.defaultPrevented || events.mousedown.stopped || events.click.defaultPrevented || events.click.stopped, false);
+		};
+		await passes(world.propertyValue('type'));
+		await passes(world.propertyValue('Status'), undefined); // 大小写不同是另一个属性，插件也写不了它
+		await passes(world.propertyValue('status'), { button: 2 });
+		for (const key of ['altKey', 'ctrlKey', 'metaKey', 'shiftKey']) await passes(world.propertyValue('status'), { [key]: true });
+		await passes(world.propertyValue('status', { widget: 'multi-select-container' }));
+		await passes(world.propertyValue('status', { pane: null }));
+		await passes(world.propertyValue('status').closest('.metadata-property')); // 点在属性名那一侧
+		assert.equal(shownMenus.length, 0);
+		nothingHappened();
+	});
+
+	it('没有状态词表时不拦，照常手动输入', async () => {
+		await start({ 'Web/a.md': task() });
+		world.open('Web/a.md');
+		await world.remoteWrite('All/status.md', '# statuses\n\n');
+		const events = await world.click(world.propertyValue('status'));
+		assert.equal(events.mousedown.defaultPrevented || events.click.defaultPrevented, false);
+		assert.equal(shownMenus.length, 0);
+	});
+
+	it('只读的笔记不弹', async () => {
+		await start({ 'All/guide.md': task() }, synchub([{ path: 'All', level: 'read' }]));
+		world.open('All/guide.md');
+		const events = await world.click(world.propertyValue('status'));
+		assert.equal(events.mousedown.defaultPrevented || events.click.defaultPrevented, false);
+		assert.equal(shownMenus.length, 0);
+	});
+
+	it('命令 Set Task Status：弹出同一份清单，选了就改', async () => {
+		await start({ 'Web/a.md': task() });
+		const command = () => world.plugin.commands.find((c) => c.id === 'set-task-status');
+		assert.equal(command().checkCallback(true), false, 'no note is open');
+		world.open('Web/a.md');
+		assert.equal(command().checkCallback(true), true);
+		assert.equal(openModals.length, 0, 'checking does not open anything');
+		command().checkCallback(false);
+		assert.equal(openModals.length, 1);
+		assert.deepEqual(openModals[0].getSuggestions(''), ['open', 'pending', 'WIP', 'closed', 'archived']);
+		assert.deepEqual(openModals[0].getSuggestions('E'), ['open', 'pending', 'closed', 'archived']);
+		openModals[0].onChooseSuggestion('WIP');
+		await world.settle();
+		assert.equal(world.text('Web/a.md'), withToday(task({ status: 'WIP' })));
 	});
 });
 
@@ -436,7 +589,7 @@ describe('在 SyncHub 里', () => {
 			{ 'Web/A/1.md': task(MESSY), 'Web/A/locked/2.md': task(MESSY) },
 			synchub([{ path: 'Web/A/locked', level: 'read' }, { path: 'Web', level: 'write' }]));
 		world.open('Web/A/1.md');
-		world.plugin.commands[0].checkCallback(false);
+		world.plugin.commands.find((c) => c.id === 'validate-people-in-folder').checkCallback(false);
 		await world.settle();
 		assert.deepEqual(world.fileWrites, ['Web/A/1.md']);
 		assert.equal(notices[notices.length - 1], 'Validated 2 files: 1 updated, 1 read-only skipped');

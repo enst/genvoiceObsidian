@@ -1,6 +1,6 @@
 import { App, Editor, moment, TFile } from 'obsidian'
 import { TextPluginSettings } from './settings'
-import { PeopleSuggestionModal, TemplateSuggestionModal } from './modals'
+import { ChoiceSuggestionModal, TemplateSuggestionModal } from './modals'
 import { updatedDateLine } from './logic'
 
 // 自动更新最近更改日期
@@ -50,7 +50,13 @@ export function knownNames(app: App, settings: TextPluginSettings): Set<string> 
 // 弹出人名选择窗口
 
 export function openPeopleSuggestionModal(app: App, settings: TextPluginSettings, onChoose: (name: string) => void) {
-	new PeopleSuggestionModal(app, collaboratorNames(app, settings), onChoose).open();
+	new ChoiceSuggestionModal(app, collaboratorNames(app, settings), 'Who are you assigning this to?', onChoose, true).open();
+}
+
+// 弹出状态选择窗口（顺序和状态词表里的一样）
+
+export function openStatusSuggestionModal(app: App, statusOptions: string[], onChoose: (status: string) => void) {
+	new ChoiceSuggestionModal(app, statusOptions, 'Set status to...', onChoose, false).open();
 }
 
 // 弹出文件 template 选择窗口，选中的模板写进 target（新建的那篇笔记）

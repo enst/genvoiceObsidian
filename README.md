@@ -11,11 +11,14 @@ The GenVoice team's plugin for task notes in a shared Obsidian vault.
 | Entry header | You start a new entry below the `+++` line of a task note | A separator line, today's date and your username are inserted above it |
 | People clean-up | After you save a note that has both `people` and `assignedTo` | One name per line, lower case, no duplicates; everyone in `assignedTo` is also in `people` |
 | Archiving | After you set `status: archived` | The note moves to `<top folder>/_Archived/<year>/<month>/<name>_<YYYYMMDDHHmm>.md` |
-| **Set Task Status** (editor menu) | You pick a status | The `status` property; choices come from `All/status.md` |
+| **Status picker** (properties panel) | You click the value of `status` | A menu opens with the choices from `All/status.md`, in the order of that file; the one you pick becomes the `status` |
+| **Set Task Status** (editor menu, and a command you can bind to a hotkey) | You pick a status | The same choices, for the note you are in |
 | **Assign Task To** (editor menu) | You pick a collaborator | `assignedTo` and `people`; choices are the notes in `All/Collaborators/` |
 | **Validate People in Folder** (command) | You run it | People clean-up for every note in the active note's folder and its subfolders |
 
 The folders and keywords can be changed in the plugin settings. Dashboards built on these properties need the Dataview plugin.
+
+The status choices are whatever `All/status.md` lists, one per line. To type a status by hand all the same, hold Alt, Ctrl, ⌘ or Shift while clicking the value, or move to it with the keyboard.
 
 ## Rules the plugin follows (since 1.1.0)
 

@@ -4,7 +4,7 @@ import {
 	LocalEdits, INPUT_WINDOW_MS, MARK_TTL_MS, FRESH_WRITE_MS, INDEX_WAIT_MS, sameText,
 	archiveTarget, isArchived, numbered, MAX_ARCHIVED_NAME_CHARS, MAX_ARCHIVED_NAME_BYTES,
 	asList, cleanNames, normalizePeople, sameMembers, updatedDateLine, touchLastEditDate, fillTemplate,
-	parsePermissions, levelFor, canWrite,
+	parsePermissions, levelFor, canWrite, parseOptions,
 } from './.build/logic.mjs';
 
 const T = 1_000_000_000;
@@ -265,6 +265,18 @@ describe('日期和模板', () => {
 		const template = '---\npeople: \nassignedTo:\ncreatedBy: \ncreatedDate: {{date}}\nupdatedDate: {{DATE}}\n---\n';
 		assert.equal(fillTemplate(template, '2026-11-23', 'mark'),
 			'---\npeople:\n  - mark\nassignedTo:\ncreatedBy: mark\ncreatedDate: 2026-11-23\nupdatedDate: 2026-11-23\n---\n');
+	});
+});
+
+describe('parseOptions：选项清单文件', () => {
+	it('一行一个，保持文件里的顺序', () => {
+		assert.deepEqual(parseOptions('open\nWIP\ntesting\nclosed\nreplied\npending\narchived\n'), ['open', 'WIP', 'testing', 'closed', 'replied', 'pending', 'archived']);
+	});
+
+	it('列表符号去掉；空行、标题、以冒号结尾的行不算；重复的只留第一个；\\r\\n 换行也行', () => {
+		assert.deepEqual(parseOptions('# Statuses\n\nActive:\n- open\n* in progress\n  - open\n\nDone:\n- closed\r\n- archived\r\n'), ['open', 'in progress', 'closed', 'archived']);
+		assert.deepEqual(parseOptions(''), []);
+		assert.deepEqual(parseOptions('\n\n# only a heading\n'), []);
 	});
 });
 

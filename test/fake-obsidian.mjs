@@ -53,6 +53,10 @@ export class MenuItem {
 		this.click = callback;
 		return this;
 	}
+	setChecked(checked) {
+		this.checked = checked;
+		return this;
+	}
 	setSubmenu() {
 		this.submenu = new Menu();
 		return this.submenu;
@@ -71,7 +75,32 @@ export class Menu {
 		callback(item);
 		return this;
 	}
+	setUseNativeMenu(useNativeMenu) {
+		this.native = useNativeMenu;
+		return this;
+	}
+	showAtMouseEvent(evt) {
+		return this.showAtPosition({ x: evt.clientX, y: evt.clientY });
+	}
+	showAtPosition(position) {
+		this.shownAt = position;
+		this.dom = { isConnected: true }; // 真的 Obsidian 里：菜单开着时它的页面元素在页面上
+		shownMenus.push(this);
+		return this;
+	}
+	// 收起。Obsidian 自己也会调：选了一项，或者点了别处
+	hide() {
+		if (this.dom) this.dom.isConnected = false;
+		this.hidden = true;
+		return this;
+	}
+	get open() {
+		return this.shownAt !== undefined && !this.hidden;
+	}
 }
+
+// 用 showAtMouseEvent 弹出来的菜单
+export const shownMenus = [];
 
 export const openModals = [];
 export class SuggestModal {
@@ -153,6 +182,47 @@ export function parseFrontmatter(text) {
 	return frontmatter;
 }
 
+// 页面元素的最简替身：只有插件用到的 closest、querySelector、getAttribute、contains，选择器只认 “.类名”
+class FakeNode {
+	constructor(className, attrs = {}, parent = null) {
+		this.className = className;
+		this.attrs = attrs;
+		this.parent = parent;
+		this.children = [];
+		if (parent) parent.children.push(this);
+	}
+	closest(selector) {
+		for (let node = this; node; node = node.parent) {
+			if (node.className === selector.slice(1)) return node;
+		}
+		return null;
+	}
+	querySelector(selector) {
+		for (const child of this.children) {
+			if (child.className === selector.slice(1)) return child;
+			const deeper = child.querySelector(selector);
+			if (deeper) return deeper;
+		}
+		return null;
+	}
+	getAttribute(name) {
+		return name in this.attrs ? this.attrs[name] : null;
+	}
+	contains(other) {
+		for (let node = other; node; node = node.parent) {
+			if (node === this) return true;
+		}
+		return false;
+	}
+	// 在屏幕上的位置。测试里所有属性值都放在同一个地方
+	getBoundingClientRect() {
+		return { left: 200, right: 500, top: 100, bottom: 124, width: 300, height: 24 };
+	}
+	get ownerDocument() {
+		return globalThis.document;
+	}
+}
+
 class Emitter {
 	constructor() {
 		this.handlers = new Map();
@@ -230,6 +300,8 @@ export class World {
 		this.queue = [];
 		this.timers = [];
 		this.plugin = null;
+		this.tabEl = new FakeNode('workspace-leaf-content'); // 当前笔记所在的标签页
+		this.sidebarEl = new FakeNode('workspace-leaf-content'); // 侧栏的 “文件属性”，显示的也是当前笔记
 		this.vaultEvents = new Emitter();
 		this.cacheEvents = new Emitter();
 		this.workspaceEvents = new Emitter();
@@ -288,7 +360,11 @@ export class World {
 				on: (name, callback) => this.workspaceEvents.on(name, callback),
 				onLayoutReady: (callback) => callback(),
 				getActiveFile: () => this.active,
-				iterateAllLeaves: () => { },
+				iterateAllLeaves: (callback) => {
+					if (this.active === null) return;
+					callback({ view: { containerEl: this.tabEl, file: this.active } });
+					callback({ view: { containerEl: this.sidebarEl, file: this.active } });
+				},
 			},
 			fileManager: {
 				renameFile: async (file, to) => {
@@ -410,6 +486,31 @@ export class World {
 		this.editor.cursor = at + text.length;
 		this.editorChanged();
 		await this.settle();
+	}
+
+	// 属性面板里某个属性的值（一个页面元素）。widget 是值的控件：文本属性是 metadata-input-longtext
+	propertyValue(key, { widget = 'metadata-input-longtext', pane = this.tabEl } = {}) {
+		const row = new FakeNode('metadata-property', { 'data-property-key': key }, new FakeNode('metadata-container', {}, pane));
+		return new FakeNode(widget, {}, new FakeNode('metadata-property-value', {}, row));
+	}
+
+	// 鼠标点一下某个页面元素。返回浏览器的两个事件，可以看它们有没有被插件拦下
+	async click(target, { button = 0, altKey = false, ctrlKey = false, metaKey = false, shiftKey = false, detail = 1 } = {}) {
+		this.touch();
+		const events = {};
+		for (const type of ['mousedown', 'click']) {
+			const evt = {
+				type, target, button, altKey, ctrlKey, metaKey, shiftKey, detail, clientX: 230, clientY: 112, defaultPrevented: false, stopped: false,
+				preventDefault() { this.defaultPrevented = true; },
+				stopPropagation() { this.stopped = true; },
+			};
+			for (const handler of this.plugin.domHandlers) {
+				if (handler.type === type) handler.callback(evt);
+			}
+			events[type] = evt;
+		}
+		await this.settle();
+		return events;
 	}
 
 	// 把某一行改成别的内容（光标停在那一行）

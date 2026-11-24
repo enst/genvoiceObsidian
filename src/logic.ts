@@ -255,6 +255,20 @@ export function fillTemplate(text: string, today: string, username: string): str
 		.replace('createdBy: ', `createdBy: ${username}`);
 }
 
+// ------------------------------------------------------------------ 预设的选项
+
+// 选项清单文件（例如 All/status.md）的内容 → 选项。一行一个，顺序就是文件里的顺序。
+// 行首的列表符号（- 或 *）去掉；空行、# 开头的行（标题）、以冒号结尾的行（小标题）不算；重复的只留第一个。
+export function parseOptions(text: string): string[] {
+	const out: string[] = [];
+	for (const raw of text.split('\n')) {
+		const line = raw.trim().replace(/^[-*]\s+/, '').trim();
+		if (line.length === 0 || line.startsWith('#') || line.endsWith(':')) continue;
+		if (!out.includes(line)) out.push(line);
+	}
+	return out;
+}
+
 // ------------------------------------------------------------------ SyncHub 的权限
 
 // 规则和 SyncHub 自己的插件一致：路径相同或者是上级文件夹的规则里，最具体的那一条生效

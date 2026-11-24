@@ -43,22 +43,26 @@ export class TemplateSuggestionModal extends SuggestModal<TFile> {
 	}
 }
 
-// 人名选择弹出窗口
+// 从一组词里选一个的弹出窗口（人名、状态）
 
-export class PeopleSuggestionModal extends SuggestModal<string> {
+export class ChoiceSuggestionModal extends SuggestModal<string> {
 
 	private suggestionList: string[];
-	private onChoose: (name: string) => void;
+	private onChoose: (choice: string) => void;
+	private sorted: boolean;
 
-	constructor(app: App, suggestionList: string[], onChoose: (name: string) => void) {
+	// sorted：按字母排序（人名）；否则保持传进来的顺序（状态词表的顺序是维护人排的）
+	constructor(app: App, suggestionList: string[], placeholder: string, onChoose: (choice: string) => void, sorted: boolean) {
 		super(app);
 		this.suggestionList = suggestionList;
 		this.onChoose = onChoose;
-		this.setPlaceholder("Who are you assigning this to?");
+		this.sorted = sorted;
+		this.setPlaceholder(placeholder);
 	}
 
 	getSuggestions(query: string): string[] {
-		return (this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase()))).sort();
+		const matches = this.suggestionList.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
+		return this.sorted ? matches.sort() : matches;
 	}
 	renderSuggestion(item: string, el: HTMLElement) {
 		el.createEl("div", { text: item });

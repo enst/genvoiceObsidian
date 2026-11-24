@@ -1,13 +1,14 @@
 import { Editor, Menu, Notice, Plugin, TFile, moment } from 'obsidian';
 import { TextPluginSettingTab, TextPluginSettings, DEFAULT_SETTINGS } from './src/settings';
-import { knownNames, openPeopleSuggestionModal, openTemplateSuggestionModal, updateLastEditDate } from './src/assets'
+import { knownNames, openPeopleSuggestionModal, openStatusSuggestionModal, openTemplateSuggestionModal, updateLastEditDate } from './src/assets'
 import { generateAutoText } from './src/autotext'
 import { editNote, validatePeople, validatePeopleInFolder } from './src/validate';
 import { assignInText, setStatusInText } from './src/people';
-import { LocalEdits, archiveTarget, isArchived, numbered, sameText, touchLastEditDate } from './src/logic';
+import { LocalEdits, archiveTarget, isArchived, numbered, parseOptions, sameText, touchLastEditDate } from './src/logic';
 import { SyncHubContext } from './src/synchub';
 
-const STATUS_FILE = 'All/status.md';
+const STATUS_FILE = 'All/status.md'; // 状态词表：一行一个，顺序就是菜单里的顺序
+const STATUS_KEY = 'status';
 
 export default class TextPlugin extends Plugin {
 	settings: TextPluginSettings;
@@ -18,6 +19,7 @@ export default class TextPlugin extends Plugin {
 	private comparing = new Set<string>();
 	private archiving = new Set<string>();
 	private watchedDocuments = new Set<Document>();
+	private statusMenu: { menu: Menu; row: Element } | null = null; // 点 status 弹出来的那个菜单，和它属于哪一行
 
 	private async loadStatusOptions() {
 		const statusFile = this.app.vault.getAbstractFileByPath(STATUS_FILE);
@@ -26,13 +28,7 @@ export default class TextPlugin extends Plugin {
 			return;
 		}
 
-		const statusOptions = (await this.app.vault.read(statusFile))
-			.split('\n')
-			.map((s) => s.trim())
-			.map((s) => s.replace(/^[-*]\s+/, '').trim())
-			.filter((s) => s.length > 0 && !s.startsWith('#') && !s.endsWith(':'));
-
-		this.statusOptions = Array.from(new Set(statusOptions)).sort();
+		this.statusOptions = parseOptions(await this.app.vault.read(statusFile));
 	}
 
 	private isActive(file: TFile): boolean {
@@ -48,6 +44,91 @@ export default class TextPlugin extends Plugin {
 		for (const type of ['keydown', 'beforeinput', 'input', 'paste', 'cut', 'drop', 'pointerdown'] as const) {
 			this.registerDomEvent(doc, type, () => this.local.input(Date.now()), { capture: true, passive: true });
 		}
+
+		// 属性面板里点 status：弹出状态词表，见 statusClick()
+		// mousedown 也要拦住，否则输入框会先获得焦点，Obsidian 自己的输入建议就弹出来了
+		this.registerDomEvent(doc, 'mousedown', (evt) => {
+			if (this.statusClick(evt) === null) return;
+			evt.preventDefault();
+			evt.stopPropagation();
+		}, { capture: true });
+		this.registerDomEvent(doc, 'click', (evt) => {
+			const hit = this.statusClick(evt);
+			if (hit === null) return;
+			evt.preventDefault();
+			evt.stopPropagation();
+			if (evt.detail > 1) return; // 双击的第二下：菜单在第一下已经弹出来了，不要又收起
+			this.toggleStatusMenu(hit.file, hit.row, evt);
+		}, { capture: true });
+	}
+
+	// 功能：点属性面板里 status 的值，弹出状态词表里的选项（实时预览、阅读视图、侧栏的文件属性都一样）
+	//	- 返回这次点击要改的笔记和点的是哪一行；不归这个功能管的点击返回 null，Obsidian 照常处理
+	//	- 按住 Alt / Ctrl / ⌘ / Shift 再点，或者用键盘进到输入框，仍然可以手动输入
+	//	- 没有状态词表、只读的笔记、status 不是文本类型时不拦
+
+	private statusClick(evt: MouseEvent): { file: TFile; row: Element } | null {
+		if (evt.button !== 0 || evt.altKey || evt.ctrlKey || evt.metaKey || evt.shiftKey) return null;
+		if (this.statusOptions.length === 0) return null;
+		// 弹出的独立窗口里的元素不是这个窗口的 Element，所以不用 instanceof 判断
+		const target = evt.target as Element | null;
+		if (!target || typeof target.closest !== 'function') return null;
+		const value = target.closest('.metadata-property-value');
+		const row = value?.closest('.metadata-property');
+		if (!value || !row || row.getAttribute('data-property-key') !== STATUS_KEY) return null;
+		if (value.querySelector('.metadata-input-longtext') === null) return null;
+		const file = this.noteOfElement(row);
+		if (file === null || !this.synchub.canWrite(file.path)) return null;
+		return { file, row };
+	}
+
+	// 页面上的一个元素属于哪篇笔记（它所在的标签页或侧栏视图显示的那一篇）
+
+	private noteOfElement(el: Element): TFile | null {
+		const found: TFile[] = [];
+		this.app.workspace.iterateAllLeaves((leaf) => {
+			if (found.length > 0 || !leaf.view.containerEl.contains(el)) return;
+			const file = (leaf.view as { file?: unknown }).file;
+			if (file instanceof TFile) found.push(file);
+		});
+		return found[0] ?? null;
+	}
+
+	// 任何时候最多只有一个状态菜单。
+	// 这些点击被上面拦下了，Obsidian 自己 “点别处就收起菜单” 的处理看不到它们，所以要在这里收起：
+	// 在同一行上再点一下是收起；点的是另一行（例如侧栏里的），收起原来的，再弹出新的。
+
+	private toggleStatusMenu(file: TFile, row: Element, evt: MouseEvent) {
+		const previous = this.statusMenu;
+		this.statusMenu = null;
+		if (previous !== null) {
+			// 菜单还开着时，它的页面元素还在页面上。拿不到这个信息（或者是系统原生菜单）就当它已经关了
+			const stillOpen = (previous.menu as unknown as { dom?: { isConnected?: boolean } }).dom?.isConnected === true;
+			previous.menu.hide();
+			if (stillOpen && previous.row === row) return;
+		}
+		const menu = this.showStatusMenu(file, row, evt);
+		this.statusMenu = { menu, row };
+	}
+
+	// 菜单像下拉框一样出现在 status 那一格的正下方，不压在鼠标上：这样再点一下点到的还是那一格（收起），
+	// 不会点到菜单里的某一项。macOS 上也用页面里的菜单而不是系统原生菜单，各个系统上的行为才一样。
+
+	private showStatusMenu(file: TFile, row: Element, evt: MouseEvent): Menu {
+		const current = this.app.metadataCache.getFileCache(file)?.frontmatter?.[STATUS_KEY];
+		const menu = new Menu();
+		if (typeof menu.setUseNativeMenu === 'function') menu.setUseNativeMenu(false);
+		for (const status of this.statusOptions) {
+			menu.addItem((item) => {
+				item.setTitle(status)
+					.setChecked(status === current)
+					.onClick(() => void this.setStatus(file, status));
+			});
+		}
+		const box = row.querySelector('.metadata-property-value')?.getBoundingClientRect();
+		if (box) menu.showAtPosition({ x: box.left, y: box.bottom }, row.ownerDocument);
+		else menu.showAtMouseEvent(evt);
+		return menu;
 	}
 
 	// 菜单操作前检查：只读的笔记不改，并告诉本人
@@ -69,12 +150,16 @@ export default class TextPlugin extends Plugin {
 		};
 	}
 
-	// 功能：右键菜单 Set Task Status
+	// 功能：设置 status（右键菜单 Set Task Status、同名的命令、点属性面板里的 status）
 	//	- 只改属性区里的 status 那一行，其余内容原样不动
 
 	private async setStatusInActiveFile(status: string) {
 		const file = this.app.workspace.getActiveFile();
-		if (!file) return;
+		if (file) await this.setStatus(file, status);
+	}
+
+	private async setStatus(file: TFile, status: string) {
+		if (!(this.app.vault.getAbstractFileByPath(file.path) instanceof TFile)) return;
 		if (!(await this.canEdit(file))) return;
 
 		if (setStatusInText(await this.app.vault.read(file), status) === null) {
@@ -361,6 +446,20 @@ export default class TextPlugin extends Plugin {
 				});
 			})
 		);
+
+		// 添加命令：从状态词表里给当前笔记选一个 status（可以绑快捷键；阅读视图里也能用）
+		this.addCommand({
+			id: 'set-task-status',
+			name: 'Set Task Status',
+			checkCallback: (checking: boolean) => {
+				const file = this.app.workspace.getActiveFile();
+				if (file === null || file.extension !== 'md' || this.statusOptions.length === 0) return false;
+				if (!checking) {
+					openStatusSuggestionModal(this.app, this.statusOptions, (status) => void this.setStatus(file, status));
+				}
+				return true;
+			}
+		});
 
 		// 添加命令：验证当前文件夹下的所有.md文件的people和assignedTo字段
 		this.addCommand({
