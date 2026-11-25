@@ -20,7 +20,7 @@ The folders and keywords can be changed in the plugin settings. Dashboards built
 
 The status choices are whatever `All/status.md` lists, one per line. To type a status by hand all the same, hold Alt, Ctrl, ⌘ or Shift while clicking the value, or move to it with the keyboard.
 
-## Rules the plugin follows (since 1.1.0)
+## Rules the plugin follows (since 1.0.42)
 
 **It only reacts to what you do on this computer.** Obsidian reports a change made by a sync tool exactly like a change you typed: the note is "modified", re-indexed, and reloaded into the editor if it is open. The plugin therefore checks, before every automatic change, that the editor holds text that is not on disk yet, or that the file was written just now while you were working on that note. A colleague's change that arrives by sync is left alone: their copy of the plugin has already handled it. Without this check every computer rewrites and moves the same note at the same moment, which is where conflict copies and duplicate archives come from.
 
